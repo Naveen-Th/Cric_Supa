@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
@@ -16,11 +17,13 @@ const MainLayout = ({ children, isAdmin = false }: MainLayoutProps) => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {isMobile ? (
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} isAdmin={isAdmin} />
-      ) : (
-        <Sidebar open={true} onClose={() => {}} isAdmin={isAdmin} />
-      )}
+      {/* Sidebar with proper mobile handling */}
+      <Sidebar 
+        open={isMobile ? sidebarOpen : true} 
+        onClose={() => setSidebarOpen(false)} 
+        isAdmin={isAdmin} 
+      />
+      
       <div className="flex flex-col min-h-screen w-full">
         <header className="sticky top-0 z-10 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
@@ -35,7 +38,7 @@ const MainLayout = ({ children, isAdmin = false }: MainLayoutProps) => {
               </Button>
             )}
             <h1 className="text-xl font-semibold">
-              {isAdmin ? "Cricket Admin" : "Cricket Score"}
+              {isAdmin ? "Cricket Admin" : "Cricket Hub"}
             </h1>
           </div>
         </header>

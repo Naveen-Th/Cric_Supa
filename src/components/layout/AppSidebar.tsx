@@ -1,6 +1,7 @@
 
-import { Home, Users, Trophy, Shield, Settings, BarChart } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Home, Users, Trophy, Shield, Settings, BarChart } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +23,7 @@ interface AppSidebarProps {
 const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { signOut } = useAuth();
   
   // User navigation items
   const userItems = [
