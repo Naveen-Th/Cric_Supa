@@ -89,7 +89,7 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
-                    active={location.pathname === item.path}
+                    isActive={location.pathname === item.path}
                     onClick={() => navigate(item.path)}
                   >
                     <item.icon className="h-5 w-5" />

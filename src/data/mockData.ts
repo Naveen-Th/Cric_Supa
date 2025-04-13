@@ -1,4 +1,3 @@
-
 import { Team, Player, Match } from '@/types/cricket';
 
 export const mockPlayers: Player[] = [
@@ -230,6 +229,7 @@ export const mockMatches: Match[] = [
     date: '2025-04-16',
     venue: 'Wankhede Stadium',
     status: 'upcoming',
+    currentInnings: 1,
     totalOvers: 20,
   },
 ];
