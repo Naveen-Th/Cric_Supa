@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Team, Player, Match } from '@/types/cricket';
 import { toast } from '@/components/ui/use-toast';
@@ -83,28 +82,25 @@ export const CricketProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('teams')
-        .select('*');
+        .select('*, players(*)');
         
       if (error) throw error;
       
-      // We need to fetch players for each team to populate the players array
-      const teamsWithPlayers: Team[] = await Promise.all(
-        data.map(async (team) => {
-          const { data: teamPlayers, error: playersError } = await supabase
-            .from('players')
-            .select('*')
-            .eq('team_id', team.id);
-            
-          if (playersError) throw playersError;
-          
-          return {
-            ...team,
-            players: teamPlayers || []
-          } as Team;
-        })
-      );
+      // Transform data to match our Team type
+      const transformedTeams: Team[] = data.map(team => ({
+        id: team.id,
+        name: team.name,
+        logo: team.logo || undefined,
+        status: team.status as 'active' | 'inactive',
+        players: (team.players || []).map(player => ({
+          id: player.id,
+          name: player.name,
+          role: player.role as 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket Keeper',
+          teamId: player.team_id,
+        })),
+      }));
       
-      setTeams(teamsWithPlayers);
+      setTeams(transformedTeams);
     } catch (error) {
       console.error('Error fetching teams:', error);
       toast({
@@ -119,11 +115,7 @@ export const CricketProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('players')
-        .select(`
-          *,
-          batting_stats!inner(*),
-          bowling_stats!inner(*)
-        `);
+        .select('*, batting_stats(*), bowling_stats(*)');
         
       if (error) throw error;
       
@@ -131,20 +123,20 @@ export const CricketProvider = ({ children }: { children: ReactNode }) => {
       const transformedPlayers: Player[] = data.map(player => ({
         id: player.id,
         name: player.name,
-        role: player.role as any,
+        role: player.role as 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket Keeper',
         teamId: player.team_id,
-        battingStats: {
-          runs: player.batting_stats?.runs || 0,
-          ballsFaced: player.batting_stats?.balls_faced || 0,
-          fours: player.batting_stats?.fours || 0,
-          sixes: player.batting_stats?.sixes || 0,
-        },
-        bowlingStats: {
-          overs: player.bowling_stats?.overs || 0,
-          maidens: player.bowling_stats?.maidens || 0,
-          runs: player.bowling_stats?.runs || 0,
-          wickets: player.bowling_stats?.wickets || 0,
-        }
+        battingStats: player.batting_stats && player.batting_stats[0] ? {
+          runs: player.batting_stats[0].runs || 0,
+          ballsFaced: player.batting_stats[0].balls_faced || 0,
+          fours: player.batting_stats[0].fours || 0,
+          sixes: player.batting_stats[0].sixes || 0,
+        } : undefined,
+        bowlingStats: player.bowling_stats && player.bowling_stats[0] ? {
+          overs: player.bowling_stats[0].overs || 0,
+          maidens: player.bowling_stats[0].maidens || 0,
+          runs: player.bowling_stats[0].runs || 0,
+          wickets: player.bowling_stats[0].wickets || 0,
+        } : undefined,
       }));
       
       setPlayers(transformedPlayers);
@@ -162,47 +154,48 @@ export const CricketProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('matches')
-        .select('*');
+        .select('*, innings(*)');
         
       if (error) throw error;
       
-      // We need to fetch innings data for each match
-      const matchesWithInnings: Match[] = await Promise.all(
-        data.map(async (match) => {
-          const { data: innings, error: inningsError } = await supabase
-            .from('innings')
-            .select('*')
-            .eq('match_id', match.id)
-            .order('innings_number', { ascending: true });
-            
-          if (inningsError) throw inningsError;
-          
-          const innings1 = innings?.find(i => i.innings_number === 1);
-          const innings2 = innings?.find(i => i.innings_number === 2);
-          
-          return {
-            ...match,
-            innings1: innings1 ? {
-              teamId: innings1.team_id,
-              runs: innings1.runs,
-              wickets: innings1.wickets,
-              overs: innings1.overs,
-              battingOrder: [],
-              extras: innings1.extras,
-            } : undefined,
-            innings2: innings2 ? {
-              teamId: innings2.team_id,
-              runs: innings2.runs,
-              wickets: innings2.wickets,
-              overs: innings2.overs,
-              battingOrder: [],
-              extras: innings2.extras,
-            } : undefined,
-          } as Match;
-        })
-      );
+      // Transform data to match our Match type
+      const transformedMatches: Match[] = data.map(match => {
+        const innings1 = match.innings?.find(i => i.innings_number === 1);
+        const innings2 = match.innings?.find(i => i.innings_number === 2);
+        
+        return {
+          id: match.id,
+          team1Id: match.team1_id,
+          team2Id: match.team2_id,
+          date: match.date,
+          venue: match.venue,
+          status: match.status as 'upcoming' | 'live' | 'completed',
+          tossWinnerId: match.toss_winner_id,
+          tossChoice: match.toss_choice as 'bat' | 'bowl' | undefined,
+          currentInnings: match.current_innings as 1 | 2 | undefined,
+          totalOvers: match.total_overs,
+          winnerId: match.winner_id,
+          mvpId: match.mvp_id,
+          innings1: innings1 ? {
+            teamId: innings1.team_id,
+            runs: innings1.runs,
+            wickets: innings1.wickets,
+            overs: innings1.overs,
+            battingOrder: [],
+            extras: innings1.extras,
+          } : undefined,
+          innings2: innings2 ? {
+            teamId: innings2.team_id,
+            runs: innings2.runs,
+            wickets: innings2.wickets,
+            overs: innings2.overs,
+            battingOrder: [],
+            extras: innings2.extras,
+          } : undefined,
+        };
+      });
       
-      setMatches(matchesWithInnings);
+      setMatches(transformedMatches);
     } catch (error) {
       console.error('Error fetching matches:', error);
       toast({

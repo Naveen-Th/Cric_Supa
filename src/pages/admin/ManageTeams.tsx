@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useCricket } from '@/context/CricketContext';
 import MainLayout from '@/components/layout/MainLayout';
@@ -18,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from '@/components/ui/use-toast';
 
 const ManageTeams = () => {
   const { teams, createTeam, deleteTeam } = useCricket();
@@ -29,19 +29,27 @@ const ManageTeams = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState<string | null>(null);
   
-  const handleCreateTeam = () => {
+  const handleCreateTeam = async () => {
     if (!teamName.trim()) return;
     
-    const newTeam = createTeam({
-      name: teamName,
-      status: 'active',
-    });
-    
-    setShowCreateDialog(false);
-    setTeamName('');
-    
-    // Navigate to add players page with the new team id
-    navigate(`/admin/teams/${newTeam.id}/add-players`);
+    try {
+      const newTeam = await createTeam({
+        name: teamName,
+        status: 'active',
+      });
+      
+      setShowCreateDialog(false);
+      setTeamName('');
+      
+      // Navigate to add players page with the new team id
+      navigate(`/admin/teams/${newTeam.id}/add-players`);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create team',
+        variant: 'destructive',
+      });
+    }
   };
   
   const handleDeleteConfirm = () => {
