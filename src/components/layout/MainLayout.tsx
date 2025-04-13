@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
@@ -12,7 +12,7 @@ interface MainLayoutProps {
 
 const MainLayout = ({ children, isAdmin = false }: MainLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -44,7 +44,6 @@ const MainLayout = ({ children, isAdmin = false }: MainLayoutProps) => {
         </main>
       </div>
       
-      {/* Add the AdminBar component */}
       <AdminBar />
     </div>
   );
