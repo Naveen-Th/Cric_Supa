@@ -1,5 +1,5 @@
 
-import { Home, Users, Trophy, Shield, Settings } from 'lucide-react';
+import { Home, Users, Trophy, Shield, Settings, BarChart } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -40,6 +40,11 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
       icon: Trophy,
       path: '/matches',
     },
+    {
+      title: 'Statistics',
+      icon: BarChart,
+      path: '/statistics',
+    }
   ];
   
   // Admin navigation items

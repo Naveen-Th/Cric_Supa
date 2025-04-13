@@ -10,6 +10,8 @@ import { CricketProvider } from "./context/CricketContext";
 import Dashboard from "./pages/Dashboard";
 import TeamDetails from "./pages/TeamDetails";
 import MatchDetails from "./pages/MatchDetails";
+import Statistics from "./pages/Statistics";
+import Matches from "./pages/Matches";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -34,7 +36,9 @@ const App = () => (
             {/* User Routes */}
             <Route path="/" element={<Dashboard />} />
             <Route path="/teams/:teamId" element={<TeamDetails />} />
+            <Route path="/matches" element={<Matches />} />
             <Route path="/matches/:matchId" element={<MatchDetails />} />
+            <Route path="/statistics" element={<Statistics />} />
             
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
