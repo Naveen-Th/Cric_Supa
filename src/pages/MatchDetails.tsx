@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarIcon, MapPin, Trophy, Users, ArrowLeft, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
-import { Match } from '@/types/cricket';
+import { Match, Team } from '@/types/cricket';
 
 const MatchDetails = () => {
   const { matchId } = useParams<{ matchId: string }>();
@@ -33,7 +33,7 @@ const MatchDetails = () => {
           // If not found, try to fetch from Supabase
           const { data, error } = await supabase
             .from('matches')
-            .select('*, team1:team1_id(name), team2:team2_id(name), winner:winner_id(name), mvp:mvp_id(name)')
+            .select('*, team1:team1_id(name), team2:team2_id(name), winner:winner_id(name), mvp:mvp_id(name), innings(*)')
             .eq('id', matchId)
             .single();
           
@@ -41,6 +41,9 @@ const MatchDetails = () => {
           
           if (data) {
             // Transform Supabase data to match our Match type
+            const innings1 = data.innings?.find((i: any) => i.innings_number === 1);
+            const innings2 = data.innings?.find((i: any) => i.innings_number === 2);
+            
             matchData = {
               id: data.id,
               team1Id: data.team1_id,
@@ -54,13 +57,27 @@ const MatchDetails = () => {
               totalOvers: data.total_overs,
               winnerId: data.winner_id,
               mvpId: data.mvp_id,
-              innings1: data.innings1,
-              innings2: data.innings2,
+              innings1: innings1 ? {
+                teamId: innings1.team_id,
+                runs: innings1.runs,
+                wickets: innings1.wickets,
+                overs: innings1.overs,
+                battingOrder: [],
+                extras: innings1.extras,
+              } : undefined,
+              innings2: innings2 ? {
+                teamId: innings2.team_id,
+                runs: innings2.runs,
+                wickets: innings2.wickets,
+                overs: innings2.overs,
+                battingOrder: [],
+                extras: innings2.extras,
+              } : undefined,
               // Keep the additional properties from Supabase for display
-              team1: data.team1,
-              team2: data.team2,
-              winner: data.winner,
-              mvp: data.mvp
+              team1: { name: data.team1?.name || 'Team 1' },
+              team2: { name: data.team2?.name || 'Team 2' },
+              winner: data.winner ? { name: data.winner.name } : undefined,
+              mvp: data.mvp ? { name: data.mvp.name } : undefined
             };
           }
         }
@@ -86,26 +103,24 @@ const MatchDetails = () => {
           // Transform the payload.new into our Match type
           if (payload.new) {
             const newData = payload.new as any;
-            setMatch({
-              id: newData.id,
-              team1Id: newData.team1_id,
-              team2Id: newData.team2_id,
-              date: newData.date,
-              venue: newData.venue,
-              status: newData.status as 'upcoming' | 'live' | 'completed',
-              tossWinnerId: newData.toss_winner_id,
-              tossChoice: newData.toss_choice as 'bat' | 'bowl' | undefined,
-              currentInnings: newData.current_innings as 1 | 2,
-              totalOvers: newData.total_overs,
-              winnerId: newData.winner_id,
-              mvpId: newData.mvp_id,
-              // Keep other properties as they were
-              innings1: match?.innings1,
-              innings2: match?.innings2,
-              team1: match?.team1,
-              team2: match?.team2,
-              winner: match?.winner,
-              mvp: match?.mvp
+            setMatch(prevMatch => {
+              if (!prevMatch) return null;
+              
+              return {
+                ...prevMatch,
+                id: newData.id,
+                team1Id: newData.team1_id,
+                team2Id: newData.team2_id,
+                date: newData.date,
+                venue: newData.venue,
+                status: newData.status as 'upcoming' | 'live' | 'completed',
+                tossWinnerId: newData.toss_winner_id,
+                tossChoice: newData.toss_choice as 'bat' | 'bowl' | undefined,
+                currentInnings: newData.current_innings as 1 | 2,
+                totalOvers: newData.total_overs,
+                winnerId: newData.winner_id,
+                mvpId: newData.mvp_id,
+              };
             });
           }
         }
@@ -148,8 +163,23 @@ const MatchDetails = () => {
   }
   
   // Find teams from the local state for more details
-  const team1 = teams.find(t => t.id === match.team1Id) || { name: match.team1?.name || 'Team 1', players: [] };
-  const team2 = teams.find(t => t.id === match.team2Id) || { name: match.team2?.name || 'Team 2', players: [] };
+  const team1Data = teams.find(t => t.id === match.team1Id);
+  const team2Data = teams.find(t => t.id === match.team2Id);
+  
+  // Create properly structured team objects, ensuring they have a players array
+  const team1: Team = team1Data || { 
+    id: match.team1Id, 
+    name: match.team1?.name || 'Team 1',
+    status: 'active',
+    players: []
+  };
+  
+  const team2: Team = team2Data || { 
+    id: match.team2Id, 
+    name: match.team2?.name || 'Team 2',
+    status: 'active',
+    players: []
+  };
   
   // Get MVP if exists
   const mvp = players.find(p => p.id === match.mvpId) || (match.mvp && { name: match.mvp.name });
