@@ -1,3 +1,4 @@
+
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
@@ -43,7 +44,7 @@ interface SidebarProps {
 
 const Sidebar = ({ open, onClose, isAdmin = false }: SidebarProps) => {
   const location = useLocation();
-  const { isAdmin: userIsAdmin, logout } = useAuth();
+  const { isAdmin: userIsAdmin, signOut } = useAuth();
   
   // Get current path to highlight active link
   const currentPath = location.pathname;
@@ -129,7 +130,7 @@ const Sidebar = ({ open, onClose, isAdmin = false }: SidebarProps) => {
               <Button 
                 variant="ghost" 
                 className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
-                onClick={logout}
+                onClick={signOut}
               >
                 <LogOut className="h-5 w-5 mr-2" />
                 Sign out

@@ -1,172 +1,120 @@
-
-import { useCricket } from '@/context/CricketContext';
 import MainLayout from '@/components/layout/MainLayout';
-import LiveMatch from '@/components/LiveMatch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Users, Trophy, Calendar, UserPlus, Settings } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCricket } from '@/context/CricketContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import LiveMatchWrapper from '@/components/LiveMatchWrapper';
+import PlayerQuickActions from '@/components/admin/PlayerQuickActions';
+import { Link } from 'react-router-dom';
 import AdminQuickAction from '@/components/admin/AdminQuickAction';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Users, Plus, Trophy } from 'lucide-react';
 
 const AdminDashboard = () => {
-  const { liveMatch, teams, matches, players } = useCricket();
-  const navigate = useNavigate();
-  
-  const activeTeams = teams.filter(team => team.status === 'active');
-  const upcomingMatches = matches.filter(match => match.status === 'upcoming');
-  const completedMatches = matches.filter(match => match.status === 'completed');
+  const { liveMatch, teams, matches } = useCricket();
   
   return (
     <MainLayout isAdmin>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Teams</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center">
-              <div className="text-3xl font-bold">{teams.length}</div>
-              <Users className="h-8 w-8 text-cricket-pitch opacity-80" />
-            </div>
-            <div className="text-xs text-gray-500 mt-1">{activeTeams.length} active teams</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Players</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center">
-              <div className="text-3xl font-bold">{players.length}</div>
-              <Users className="h-8 w-8 text-cricket-secondary opacity-80" />
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {players.filter(p => p.role === 'Batsman').length} batsmen, {' '}
-              {players.filter(p => p.role === 'Bowler').length} bowlers
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Matches</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center">
-              <div className="text-3xl font-bold">{matches.length}</div>
-              <Trophy className="h-8 w-8 text-cricket-accent opacity-80" />
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {completedMatches.length} completed, {upcomingMatches.length} upcoming
-              {liveMatch ? ', 1 live' : ''}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <p className="text-muted-foreground">Manage cricket matches, teams and players.</p>
       </div>
       
-      <div className="grid grid-cols-1 gap-6 mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Quick Actions</h2>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <AdminQuickAction 
-            icon={Users}
-            title="Create Team"
-            description="Add a new cricket team"
-            onClick={() => navigate('/admin/teams')}
-          />
-          
-          <AdminQuickAction 
-            icon={Trophy}
-            title="Create Match"
-            description="Schedule a new match"
-            onClick={() => navigate('/admin/matches/create')}
-          />
-          
-          <AdminQuickAction 
-            icon={UserPlus}
-            title="Manage Players"
-            description="Add or update players"
-            onClick={() => navigate('/admin/players')}
-          />
-        </div>
-      </div>
-      
+      {/* Live Match Section (if exists) */}
       {liveMatch && (
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold flex items-center">
-              <span className="h-3 w-3 rounded-full bg-cricket-ball mr-2 animate-pulse"></span>
-              Live Match Control
-            </h2>
-          </div>
-          <LiveMatch match={liveMatch} teams={teams} isAdmin={true} />
+          <h2 className="text-xl font-semibold mb-4">Live Match</h2>
+          <LiveMatchWrapper 
+            match={liveMatch} 
+            teams={teams} 
+            isAdmin={true} 
+          />
         </div>
       )}
       
-      <div className="grid grid-cols-1 gap-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Upcoming Matches</h2>
-          <Button 
-            size="sm" 
-            variant="outline"
-            onClick={() => navigate('/admin/matches')}
-          >
-            View All
-          </Button>
-        </div>
+      {/* Quick Actions */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common administrative tasks</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="teams">
+            <TabsList className="mb-4">
+              <TabsTrigger value="teams">Teams</TabsTrigger>
+              <TabsTrigger value="matches">Matches</TabsTrigger>
+              <TabsTrigger value="players">Players</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="teams">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <AdminQuickAction
+                  icon={Users}
+                  title="View All Teams"
+                  description="See all registered teams"
+                  onClick={() => {}}
+                />
+                <AdminQuickAction
+                  icon={Plus}
+                  title="Create New Team"
+                  description="Add a new cricket team"
+                  onClick={() => {}}
+                />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="matches">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <AdminQuickAction
+                  icon={Trophy}
+                  title="View All Matches"
+                  description="See all scheduled matches"
+                  onClick={() => {}}
+                />
+                <AdminQuickAction
+                  icon={Plus}
+                  title="Create New Match"
+                  description="Schedule a new cricket match"
+                  onClick={() => {}}
+                />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="players">
+              <PlayerQuickActions />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+      
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Teams</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{teams.length}</div>
+          </CardContent>
+        </Card>
         
-        {upcomingMatches.length > 0 ? (
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Teams</TableHead>
-                    <TableHead>Venue</TableHead>
-                    <TableHead>Format</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {upcomingMatches.slice(0, 5).map(match => (
-                    <TableRow key={match.id}>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                          {new Date(match.date).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {teams.find(t => t.id === match.team1Id)?.name} vs {' '}
-                        {teams.find(t => t.id === match.team2Id)?.name}
-                      </TableCell>
-                      <TableCell>{match.venue}</TableCell>
-                      <TableCell>{match.totalOvers} overs</TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => navigate(`/admin/matches/${match.id}`)}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="text-center p-8 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">No upcoming matches. Create one now!</p>
-          </div>
-        )}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Matches</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{matches.length}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {liveMatch ? 'Live Match in Progress' : 'No Live Matches'}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );

@@ -25,6 +25,8 @@ import ManageMatches from "./pages/admin/ManageMatches";
 import AllPlayers from "./pages/admin/AllPlayers";
 import AddPlayers from "./pages/admin/AddPlayers";
 import CreateMatch from "./pages/admin/CreateMatch";
+import PlayerManagement from "./pages/admin/PlayerManagement";
+import TeamPlayerManagement from "./pages/admin/TeamPlayerManagement";
 
 import NotFound from "./pages/NotFound";
 
@@ -60,9 +62,11 @@ const AppRoutes = () => {
       <Route path="/admin/teams" element={<AdminRoute><ManageTeams /></AdminRoute>} />
       <Route path="/admin/teams/:teamId" element={<AdminRoute><EditTeam /></AdminRoute>} />
       <Route path="/admin/teams/:teamId/add-players" element={<AdminRoute><AddPlayers /></AdminRoute>} />
+      <Route path="/admin/teams/:teamId/players" element={<AdminRoute><TeamPlayerManagement /></AdminRoute>} />
       <Route path="/admin/matches" element={<AdminRoute><ManageMatches /></AdminRoute>} />
       <Route path="/admin/matches/create" element={<AdminRoute><CreateMatch /></AdminRoute>} />
       <Route path="/admin/players" element={<AdminRoute><AllPlayers /></AdminRoute>} />
+      <Route path="/admin/player-management" element={<AdminRoute><PlayerManagement /></AdminRoute>} />
       
       {/* Catch-all route */}
       <Route path="*" element={<NotFound />} />
