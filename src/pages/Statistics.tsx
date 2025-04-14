@@ -6,45 +6,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users2, BarChart2 } from 'lucide-react';
+import StatisticsTable from '@/components/StatisticsTable';
 
 // Color constants for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 const Statistics = () => {
-  const { teams, players, matches, completedMatches } = useCricket();
+  const { teams, players, matches, completedMatches, loading } = useCricket();
   const [selectedTeam, setSelectedTeam] = useState<string | null>(teams.length > 0 ? teams[0].id : null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingTeamData, setLoadingTeamData] = useState(false);
   
   // Selected team data
   const team = teams.find(t => t.id === selectedTeam);
   const teamPlayers = team ? team.players : [];
   
-  // Calculate batting statistics
-  const battingStats = teamPlayers
-    .filter(player => player.battingStats)
-    .map(player => ({
-      name: player.name,
-      runs: player.battingStats?.runs || 0,
-      avg: player.battingStats?.ballsFaced ? 
-        ((player.battingStats.runs / player.battingStats.ballsFaced) * 100).toFixed(2) : 0,
-      fours: player.battingStats?.fours || 0,
-      sixes: player.battingStats?.sixes || 0,
-    }))
-    .sort((a, b) => b.runs - a.runs);
-  
-  // Calculate bowling statistics
-  const bowlingStats = teamPlayers
-    .filter(player => player.bowlingStats)
-    .map(player => ({
-      name: player.name,
-      wickets: player.bowlingStats?.wickets || 0,
-      runs: player.bowlingStats?.runs || 0,
-      overs: player.bowlingStats?.overs || 0,
-      economy: player.bowlingStats?.overs ? 
-        (player.bowlingStats.runs / player.bowlingStats.overs).toFixed(2) : 0,
-    }))
-    .sort((a, b) => b.wickets - a.wickets);
+  // Filter players for batting and bowling statistics
+  const batsmen = teamPlayers.filter(p => p.battingStats && p.battingStats.runs > 0);
+  const bowlers = teamPlayers.filter(p => p.bowlingStats && p.bowlingStats.wickets > 0);
   
   // Calculate team wins/losses
   const teamMatches = completedMatches.filter(
@@ -67,14 +46,36 @@ const Statistics = () => {
   
   const roleData = Object.entries(roleDistribution).map(([name, value]) => ({ name, value }));
   
+  // Empty state - no teams or data
+  const NoTeamsOrData = () => (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-10">
+      <div className="mb-6 text-gray-300">
+        <BarChart2 size={100} />
+      </div>
+      <h3 className="text-2xl font-medium mb-2">No Statistics Available</h3>
+      <p className="text-gray-500 max-w-md">
+        There is currently no statistical data available. Statistics will appear here once teams are created and matches are played.
+      </p>
+    </div>
+  );
+  
   // Loading and error states
-  if (teams.length === 0) {
+  if (loading) {
     return (
       <MainLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <Loader2 className="h-8 w-8 animate-spin text-cricket-secondary mb-4" />
           <p className="text-gray-500">Loading statistics...</p>
         </div>
+      </MainLayout>
+    );
+  }
+  
+  if (teams.length === 0) {
+    return (
+      <MainLayout>
+        <h1 className="text-2xl font-bold mb-6">Team Statistics</h1>
+        <NoTeamsOrData />
       </MainLayout>
     );
   }
@@ -98,10 +99,10 @@ const Statistics = () => {
         <Select 
           value={selectedTeam} 
           onValueChange={(value) => {
-            setIsLoading(true);
+            setLoadingTeamData(true);
             setSelectedTeam(value);
             // Simulate loading
-            setTimeout(() => setIsLoading(false), 500);
+            setTimeout(() => setLoadingTeamData(false), 500);
           }}
         >
           <SelectTrigger>
@@ -117,7 +118,7 @@ const Statistics = () => {
         </Select>
       </div>
       
-      {isLoading ? (
+      {loadingTeamData ? (
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <Loader2 className="h-8 w-8 animate-spin text-cricket-secondary mb-4" />
           <p className="text-gray-500">Loading statistics...</p>
@@ -203,63 +204,21 @@ const Statistics = () => {
             </TabsList>
             
             <TabsContent value="batting">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Batsmen</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[400px]">
-                  {battingStats.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={battingStats.slice(0, 5)}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                      >
-                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="runs" fill="#8884d8" name="Runs" />
-                        <Bar dataKey="fours" fill="#82ca9d" name="Fours" />
-                        <Bar dataKey="sixes" fill="#ffc658" name="Sixes" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">No batting statistics available</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <StatisticsTable 
+                title="Top Batsmen" 
+                players={batsmen} 
+                type="batting"
+                loading={loadingTeamData}
+              />
             </TabsContent>
             
             <TabsContent value="bowling">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Bowlers</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[400px]">
-                  {bowlingStats.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={bowlingStats.slice(0, 5)}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                      >
-                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="wickets" fill="#8884d8" name="Wickets" />
-                        <Bar dataKey="overs" fill="#82ca9d" name="Overs" />
-                        <Bar dataKey="economy" fill="#ffc658" name="Economy" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">No bowling statistics available</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <StatisticsTable 
+                title="Top Bowlers" 
+                players={bowlers} 
+                type="bowling"
+                loading={loadingTeamData}
+              />
             </TabsContent>
           </Tabs>
         </div>
