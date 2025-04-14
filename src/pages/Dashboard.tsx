@@ -5,9 +5,21 @@ import LiveMatch from '@/components/LiveMatch';
 import TeamCard from '@/components/TeamCard';
 import MatchCard from '@/components/MatchCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, Trophy, Users, Calendar } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { liveMatch, activeTeams, completedMatches, teams } = useCricket();
+  const { liveMatch, activeTeams, matches, teams } = useCricket();
+  const navigate = useNavigate();
+  
+  // Get upcoming matches (not live, not completed)
+  const upcomingMatches = matches.filter(match => match.status === 'upcoming');
+  const completedMatches = matches.filter(match => match.status === 'completed');
+  
+  // Get top teams (those with most completed matches won)
+  const topTeams = activeTeams.slice(0, 3);
   
   return (
     <MainLayout>
@@ -29,15 +41,82 @@ const Dashboard = () => {
           </div>
         )}
         
-        {/* Teams and Matches Tabs */}
+        {/* Upcoming Matches Section */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold flex items-center">
+              <Calendar className="mr-2 h-5 w-5 text-cricket-secondary" />
+              Upcoming Matches
+            </h2>
+            {upcomingMatches.length > 3 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center"
+                onClick={() => navigate('/matches')}
+              >
+                View all <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          
+          {upcomingMatches.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {upcomingMatches.slice(0, 3).map(match => (
+                <MatchCard key={match.id} match={match} teams={teams} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No upcoming matches scheduled.</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Team Highlights */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold flex items-center">
+              <Trophy className="mr-2 h-5 w-5 text-cricket-accent" />
+              Team Highlights
+            </h2>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex items-center"
+              onClick={() => navigate('/teams')}
+            >
+              All teams <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+          
+          {activeTeams.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {topTeams.map(team => (
+                <TeamCard key={team.id} team={team} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No active teams available.</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Teams and Completed Matches Tabs */}
         <Tabs defaultValue="teams" className="w-full">
           <TabsList className="mb-4 w-full">
-            <TabsTrigger value="teams" className="flex-1">Active Teams</TabsTrigger>
-            <TabsTrigger value="matches" className="flex-1">Completed Matches</TabsTrigger>
+            <TabsTrigger value="teams" className="flex-1">
+              <Users className="mr-2 h-4 w-4" />
+              Active Teams
+            </TabsTrigger>
+            <TabsTrigger value="matches" className="flex-1">
+              <Trophy className="mr-2 h-4 w-4" />
+              Completed Matches
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="teams">
-            <h2 className="text-xl font-bold mb-4">Active Teams</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeTeams.map(team => (
                 <TeamCard key={team.id} team={team} />
@@ -51,7 +130,6 @@ const Dashboard = () => {
           </TabsContent>
           
           <TabsContent value="matches">
-            <h2 className="text-xl font-bold mb-4">Completed Matches</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {completedMatches.map(match => (
                 <MatchCard key={match.id} match={match} teams={teams} />

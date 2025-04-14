@@ -1,31 +1,39 @@
-
-import React, { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Sidebar as ShadcnSidebar, 
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-} from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/context/AuthContext';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
-  Users, 
   Trophy, 
-  Shield, 
-  BarChart, 
+  Users, 
+  BarChart2, 
+  Calendar,
   Settings,
-  LogOut, 
-  ChevronLeft
+  LogOut,
+  Shield
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
+
+interface NavItemProps {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+}
+
+const NavItem = ({ to, label, icon, active }: NavItemProps) => (
+  <Link to={to}>
+    <Button
+      variant={active ? "secondary" : "ghost"}
+      className={cn(
+        "w-full justify-start",
+        active && "bg-accent text-accent-foreground"
+      )}
+    >
+      {icon}
+      <span className="ml-2">{label}</span>
+    </Button>
+  </Link>
+);
 
 interface SidebarProps {
   open: boolean;
@@ -33,190 +41,104 @@ interface SidebarProps {
   isAdmin?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ open, onClose, isAdmin = false }) => {
-  const navigate = useNavigate();
+const Sidebar = ({ open, onClose, isAdmin = false }: SidebarProps) => {
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { isAdmin: userIsAdmin, logout } = useAuth();
   
-  // Close sidebar on navigation on mobile
-  useEffect(() => {
-    if (open) {
-      const handleRouteChange = () => {
-        onClose();
-      };
-      
-      window.addEventListener('popstate', handleRouteChange);
-      
-      return () => {
-        window.removeEventListener('popstate', handleRouteChange);
-      };
-    }
-  }, [open, onClose]);
+  // Get current path to highlight active link
+  const currentPath = location.pathname;
   
-  // User navigation items
-  const userItems = [
-    {
-      title: 'Dashboard',
-      icon: Home,
-      path: '/',
-    },
-    {
-      title: 'Teams',
-      icon: Users,
-      path: '/teams',
-    },
-    {
-      title: 'Matches',
-      icon: Trophy,
-      path: '/matches',
-    },
-    {
-      title: 'Statistics',
-      icon: BarChart,
-      path: '/statistics',
-    }
+  const userNavItems = [
+    { to: '/', label: 'Dashboard', icon: <Home className="h-5 w-5" /> },
+    { to: '/teams', label: 'Teams', icon: <Users className="h-5 w-5" /> },
+    { to: '/matches', label: 'Matches', icon: <Trophy className="h-5 w-5" /> },
+    { to: '/statistics', label: 'Statistics', icon: <BarChart2 className="h-5 w-5" /> },
   ];
   
-  // Admin navigation items
-  const adminItems = [
-    {
-      title: 'Admin Dashboard',
-      icon: Shield,
-      path: '/admin',
-    },
-    {
-      title: 'Manage Teams',
-      icon: Users,
-      path: '/admin/teams',
-    },
-    {
-      title: 'Manage Matches',
-      icon: Trophy,
-      path: '/admin/matches',
-    },
-    {
-      title: 'All Players',
-      icon: Users,
-      path: '/admin/players',
-    },
+  const adminNavItems = [
+    { to: '/admin', label: 'Admin Dashboard', icon: <Shield className="h-5 w-5" /> },
+    { to: '/admin/teams', label: 'Manage Teams', icon: <Users className="h-5 w-5" /> },
+    { to: '/admin/matches', label: 'Manage Matches', icon: <Trophy className="h-5 w-5" /> },
+    { to: '/admin/players', label: 'Manage Players', icon: <Users className="h-5 w-5" /> },
   ];
   
-  const items = isAdmin ? adminItems : userItems;
-
+  // If sidebar is closed on mobile, don't render content
+  if (!open) {
+    return null;
+  }
+  
   return (
-    <SidebarProvider defaultOpen={open}>
-      <ShadcnSidebar>
-        <SidebarHeader className="pb-2">
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">CH</span>
-              </div>
-              <span className="ml-2 font-bold text-lg">Cricket Hub</span>
+    <>
+      {/* Mobile overlay */}
+      <div 
+        className={cn(
+          "fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden",
+          open ? "block" : "hidden"
+        )}
+        onClick={onClose}
+      />
+      
+      {/* Sidebar */}
+      <div className={cn(
+        "fixed top-0 bottom-0 left-0 z-50 w-64 border-r bg-background p-4 transition-transform lg:static lg:z-0",
+        open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
+        <div className="h-full flex flex-col justify-between">
+          <div className="space-y-6">
+            <div className="space-y-1">
+              <h2 className="px-4 text-lg font-semibold">Cricket Hub</h2>
+              <p className="px-4 text-sm text-gray-500">Live scores & matches</p>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={onClose}
-              className="md:hidden"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          </div>
-        </SidebarHeader>
-        
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>
-              {isAdmin ? 'Admin Controls' : 'Navigation'}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      isActive={location.pathname === item.path}
-                      onClick={() => navigate(item.path)}
-                    >
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-          
-          {isAdmin && (
-            <SidebarGroup>
-              <SidebarGroupLabel>User View</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => navigate('/')}>
-                      <Home className="h-5 w-5" />
-                      <span>Go to User Dashboard</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-          
-          {!isAdmin && (
-            <SidebarGroup>
-              <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => navigate('/matches/live')}>
-                      <Trophy className="h-5 w-5" />
-                      <span>View Live Matches</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-        </SidebarContent>
-        
-        <SidebarFooter>
-          <div className="p-4 flex flex-col gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="w-full justify-start"
-              onClick={() => navigate('/settings')}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
             
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="w-full justify-start"
-              onClick={signOut}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
+            <div className="space-y-1 px-3">
+              {userNavItems.map((item) => (
+                <NavItem
+                  key={item.to}
+                  to={item.to}
+                  label={item.label}
+                  icon={item.icon}
+                  active={currentPath === item.to}
+                />
+              ))}
+            </div>
             
-            {!isAdmin && (
-              <Button 
-                variant="default" 
-                size="sm"
-                className="w-full mt-2"
-                onClick={() => navigate('/admin')}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Admin Access
-              </Button>
+            {userIsAdmin && (
+              <div className="pt-4">
+                <h3 className="px-4 text-sm font-medium mb-2">Admin</h3>
+                <div className="space-y-1 px-3">
+                  {adminNavItems.map((item) => (
+                    <NavItem
+                      key={item.to}
+                      to={item.to}
+                      label={item.label}
+                      icon={item.icon}
+                      active={currentPath.startsWith(item.to)}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-        </SidebarFooter>
-      </ShadcnSidebar>
-    </SidebarProvider>
+          
+          <div className="p-3 mt-6">
+            <div className="flex flex-col gap-2">
+              <Button variant="ghost" className="justify-start">
+                <Settings className="h-5 w-5 mr-2" />
+                Settings
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+                onClick={logout}
+              >
+                <LogOut className="h-5 w-5 mr-2" />
+                Sign out
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 

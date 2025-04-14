@@ -10,6 +10,7 @@ import { useAuth } from "./context/AuthContext";
 
 // User pages
 import Dashboard from "./pages/Dashboard";
+import Teams from "./pages/Teams";
 import TeamDetails from "./pages/TeamDetails";
 import MatchDetails from "./pages/MatchDetails";
 import Statistics from "./pages/Statistics";
@@ -19,6 +20,7 @@ import Auth from "./pages/Auth";
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageTeams from "./pages/admin/ManageTeams";
+import EditTeam from "./pages/admin/EditTeam";
 import ManageMatches from "./pages/admin/ManageMatches";
 import AllPlayers from "./pages/admin/AllPlayers";
 import AddPlayers from "./pages/admin/AddPlayers";
@@ -47,6 +49,7 @@ const AppRoutes = () => {
       
       {/* User Routes */}
       <Route path="/" element={<Dashboard />} />
+      <Route path="/teams" element={<Teams />} />
       <Route path="/teams/:teamId" element={<TeamDetails />} />
       <Route path="/matches" element={<Matches />} />
       <Route path="/matches/:matchId" element={<MatchDetails />} />
@@ -55,6 +58,7 @@ const AppRoutes = () => {
       {/* Admin Routes - Protected */}
       <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
       <Route path="/admin/teams" element={<AdminRoute><ManageTeams /></AdminRoute>} />
+      <Route path="/admin/teams/:teamId" element={<AdminRoute><EditTeam /></AdminRoute>} />
       <Route path="/admin/teams/:teamId/add-players" element={<AdminRoute><AddPlayers /></AdminRoute>} />
       <Route path="/admin/matches" element={<AdminRoute><ManageMatches /></AdminRoute>} />
       <Route path="/admin/matches/create" element={<AdminRoute><CreateMatch /></AdminRoute>} />

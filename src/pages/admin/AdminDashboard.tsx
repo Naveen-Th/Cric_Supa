@@ -5,7 +5,9 @@ import LiveMatch from '@/components/LiveMatch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Users, Trophy, Calendar } from 'lucide-react';
+import { PlusCircle, Users, Trophy, Calendar, UserPlus, Settings } from 'lucide-react';
+import AdminQuickAction from '@/components/admin/AdminQuickAction';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const AdminDashboard = () => {
   const { liveMatch, teams, matches, players } = useCricket();
@@ -70,32 +72,26 @@ const AdminDashboard = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button 
-            variant="outline" 
-            className="h-auto py-4 flex-col items-center justify-center gap-2"
-            onClick={() => navigate('/admin/teams/create')}
-          >
-            <PlusCircle className="h-6 w-6" />
-            <span>Create Team</span>
-          </Button>
+          <AdminQuickAction 
+            icon={Users}
+            title="Create Team"
+            description="Add a new cricket team"
+            onClick={() => navigate('/admin/teams')}
+          />
           
-          <Button 
-            variant="outline" 
-            className="h-auto py-4 flex-col items-center justify-center gap-2"
+          <AdminQuickAction 
+            icon={Trophy}
+            title="Create Match"
+            description="Schedule a new match"
             onClick={() => navigate('/admin/matches/create')}
-          >
-            <Trophy className="h-6 w-6" />
-            <span>Create Match</span>
-          </Button>
+          />
           
-          <Button 
-            variant="outline" 
-            className="h-auto py-4 flex-col items-center justify-center gap-2"
+          <AdminQuickAction 
+            icon={UserPlus}
+            title="Manage Players"
+            description="Add or update players"
             onClick={() => navigate('/admin/players')}
-          >
-            <Users className="h-6 w-6" />
-            <span>Manage Players</span>
-          </Button>
+          />
         </div>
       </div>
       
@@ -177,6 +173,3 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
-
-// Import the Table components
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

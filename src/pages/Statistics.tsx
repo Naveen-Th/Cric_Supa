@@ -1,420 +1,269 @@
 
-import React from 'react';
+import { useState } from 'react';
 import { useCricket } from '@/context/CricketContext';
 import MainLayout from '@/components/layout/MainLayout';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell 
-} from 'recharts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { Loader2 } from 'lucide-react';
+
+// Color constants for charts
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 const Statistics = () => {
   const { teams, players, matches, completedMatches } = useCricket();
-
-  // Prepare runs per over data for completed matches
-  const runsPerOverData = completedMatches.flatMap(match => {
-    if (!match.innings1 || !match.innings2) return [];
-    
-    // Create data points for all overs in first innings
-    const firstInningsData = Array.from({ length: Math.ceil(match.innings1.overs) }, (_, i) => ({
-      over: i + 1,
-      team: teams.find(t => t.id === match.innings1?.teamId)?.name || 'Unknown',
-      runs: Math.floor(Math.random() * 15), // Simulated data for visualization
-    }));
-    
-    // Create data points for all overs in second innings
-    const secondInningsData = Array.from({ length: Math.ceil(match.innings2.overs) }, (_, i) => ({
-      over: i + 1,
-      team: teams.find(t => t.id === match.innings2?.teamId)?.name || 'Unknown',
-      runs: Math.floor(Math.random() * 15), // Simulated data for visualization
-    }));
-    
-    return [...firstInningsData, ...secondInningsData];
-  });
-
-  // Calculate aggregate player statistics
-  const playerStats = players.map(player => {
-    const totalRuns = player.battingStats?.runs || 0;
-    const totalWickets = player.bowlingStats?.wickets || 0;
-    const matchesPlayed = completedMatches.filter(match => 
-      (match.innings1?.battingOrder?.includes(player.id) || 
-       match.innings2?.battingOrder?.includes(player.id))
-    ).length;
-    
-    const strikeRate = player.battingStats?.ballsFaced 
-      ? (player.battingStats.runs / player.battingStats.ballsFaced) * 100 
-      : 0;
-    
-    const economyRate = player.bowlingStats?.overs 
-      ? player.bowlingStats.runs / player.bowlingStats.overs 
-      : 0;
-    
-    return {
-      id: player.id,
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(teams.length > 0 ? teams[0].id : null);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Selected team data
+  const team = teams.find(t => t.id === selectedTeam);
+  const teamPlayers = team ? team.players : [];
+  
+  // Calculate batting statistics
+  const battingStats = teamPlayers
+    .filter(player => player.battingStats)
+    .map(player => ({
       name: player.name,
-      team: teams.find(t => t.id === player.teamId)?.name || 'Unknown',
-      totalRuns,
-      totalWickets,
-      matchesPlayed,
-      strikeRate: strikeRate.toFixed(2),
-      economyRate: economyRate.toFixed(2),
-    };
-  });
-
-  // Calculate team statistics
-  const teamStats = teams.map(team => {
-    const teamMatches = completedMatches.filter(match => 
-      match.team1Id === team.id || match.team2Id === team.id
+      runs: player.battingStats?.runs || 0,
+      avg: player.battingStats?.ballsFaced ? 
+        ((player.battingStats.runs / player.battingStats.ballsFaced) * 100).toFixed(2) : 0,
+      fours: player.battingStats?.fours || 0,
+      sixes: player.battingStats?.sixes || 0,
+    }))
+    .sort((a, b) => b.runs - a.runs);
+  
+  // Calculate bowling statistics
+  const bowlingStats = teamPlayers
+    .filter(player => player.bowlingStats)
+    .map(player => ({
+      name: player.name,
+      wickets: player.bowlingStats?.wickets || 0,
+      runs: player.bowlingStats?.runs || 0,
+      overs: player.bowlingStats?.overs || 0,
+      economy: player.bowlingStats?.overs ? 
+        (player.bowlingStats.runs / player.bowlingStats.overs).toFixed(2) : 0,
+    }))
+    .sort((a, b) => b.wickets - a.wickets);
+  
+  // Calculate team wins/losses
+  const teamMatches = completedMatches.filter(
+    match => match.team1Id === selectedTeam || match.team2Id === selectedTeam
+  );
+  
+  const wins = teamMatches.filter(match => match.winnerId === selectedTeam).length;
+  const losses = teamMatches.length - wins;
+  
+  const winLossData = [
+    { name: 'Wins', value: wins },
+    { name: 'Losses', value: losses },
+  ];
+  
+  // Role distribution in the team
+  const roleDistribution = teamPlayers.reduce((acc, player) => {
+    acc[player.role] = (acc[player.role] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const roleData = Object.entries(roleDistribution).map(([name, value]) => ({ name, value }));
+  
+  // Loading and error states
+  if (teams.length === 0) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-cricket-secondary mb-4" />
+          <p className="text-gray-500">Loading statistics...</p>
+        </div>
+      </MainLayout>
     );
-    
-    const wins = teamMatches.filter(match => match.winnerId === team.id).length;
-    const losses = teamMatches.length - wins;
-    
-    // Calculate average and max scores
-    const scores = teamMatches.flatMap(match => {
-      const scores = [];
-      if (match.innings1 && match.innings1.teamId === team.id) {
-        scores.push(match.innings1.runs);
-      }
-      if (match.innings2 && match.innings2.teamId === team.id) {
-        scores.push(match.innings2.runs);
-      }
-      return scores;
-    });
-    
-    const avgScore = scores.length > 0 
-      ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) 
-      : 0;
-    
-    const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
-    
-    return {
-      id: team.id,
-      name: team.name,
-      matches: teamMatches.length,
-      wins,
-      losses,
-      winRatio: teamMatches.length > 0 ? (wins / teamMatches.length).toFixed(2) : '0.00',
-      avgScore,
-      maxScore,
-    };
-  });
-
-  // Prepare fall of wickets data (simulated for visualization)
-  const wicketsData = Array.from({ length: 10 }, (_, i) => ({
-    wicket: i + 1,
-    over: Math.floor(Math.random() * 20) + 1,
-    runs: Math.floor(Math.random() * 150) + 20,
-  }));
-
-  // Color palette for charts
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-
+  }
+  
+  if (!selectedTeam) {
+    return (
+      <MainLayout>
+        <div className="text-center p-10">
+          <h2 className="text-xl font-semibold mb-2">No teams available</h2>
+          <p className="text-gray-500">Statistics cannot be displayed without team data.</p>
+        </div>
+      </MainLayout>
+    );
+  }
+  
   return (
     <MainLayout>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Cricket Statistics</h1>
-        <p className="text-gray-500">Comprehensive statistics for teams and players</p>
+      <h1 className="text-2xl font-bold mb-6">Team Statistics</h1>
+      
+      <div className="mb-6 max-w-xs">
+        <Select 
+          value={selectedTeam} 
+          onValueChange={(value) => {
+            setIsLoading(true);
+            setSelectedTeam(value);
+            // Simulate loading
+            setTimeout(() => setIsLoading(false), 500);
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a team" />
+          </SelectTrigger>
+          <SelectContent>
+            {teams.map(team => (
+              <SelectItem key={team.id} value={team.id}>
+                {team.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-
-      <Tabs defaultValue="match" className="w-full">
-        <TabsList className="mb-4 w-full">
-          <TabsTrigger value="match" className="flex-1">Match Statistics</TabsTrigger>
-          <TabsTrigger value="player" className="flex-1">Player Statistics</TabsTrigger>
-          <TabsTrigger value="team" className="flex-1">Team Statistics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="match">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Runs per Over Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Runs per Over</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={runsPerOverData.slice(0, 20)} // Limit for better visualization
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="over" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="runs" fill="#8884d8" name="Runs Scored" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Fall of Wickets Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Fall of Wickets</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={wicketsData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="wicket" label={{ value: 'Wicket Number', position: 'insideBottomRight', offset: -5 }} />
-                    <YAxis yAxisId="left" label={{ value: 'Runs', angle: -90, position: 'insideLeft' }} />
-                    <YAxis yAxisId="right" orientation="right" label={{ value: 'Over', angle: 90, position: 'insideRight' }} />
-                    <Tooltip />
-                    <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="runs" stroke="#8884d8" name="Runs at Fall" />
-                    <Line yAxisId="right" type="monotone" dataKey="over" stroke="#82ca9d" name="Over Number" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Over Economy Chart */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Bowling Economy Rate</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={players
-                      .filter(p => p.bowlingStats && p.bowlingStats.overs > 0)
-                      .map(p => ({
-                        name: p.name,
-                        economy: p.bowlingStats?.overs ? (p.bowlingStats.runs / p.bowlingStats.overs).toFixed(2) : 0,
-                        wickets: p.bowlingStats?.wickets || 0,
-                      }))
-                      .slice(0, 10)
-                    }
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="economy" fill="#82ca9d" name="Economy Rate" />
-                    <Bar dataKey="wickets" fill="#8884d8" name="Wickets" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="player">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Top Run Scorers */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Run Scorers</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={playerStats
-                      .sort((a, b) => b.totalRuns - a.totalRuns)
-                      .slice(0, 10)
-                    }
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="totalRuns" fill="#8884d8" name="Total Runs" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Top Wicket Takers */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Wicket Takers</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={playerStats
-                      .sort((a, b) => b.totalWickets - a.totalWickets)
-                      .slice(0, 10)
-                    }
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="totalWickets" fill="#82ca9d" name="Total Wickets" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Strike Rate Comparison */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Batting Strike Rate</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={playerStats
-                      .filter(p => parseFloat(p.strikeRate) > 0)
-                      .sort((a, b) => parseFloat(b.strikeRate) - parseFloat(a.strikeRate))
-                      .slice(0, 10)
-                    }
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="strikeRate" fill="#ff8042" name="Strike Rate" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Economy Rate Comparison */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Economy Rate</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={playerStats
-                      .filter(p => parseFloat(p.economyRate) > 0)
-                      .sort((a, b) => parseFloat(a.economyRate) - parseFloat(b.economyRate))
-                      .slice(0, 10)
-                    }
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="economyRate" fill="#ffbb28" name="Economy Rate" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="team">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Team Win/Loss Ratio */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Team Performance</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={teamStats.filter(t => t.matches > 0)}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="wins" stackId="a" fill="#82ca9d" name="Wins" />
-                    <Bar dataKey="losses" stackId="a" fill="#ff8042" name="Losses" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Win Ratio Pie Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Win Distribution</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={teamStats
-                        .filter(t => t.wins > 0)
-                        .map(team => ({ name: team.name, value: team.wins }))
-                      }
-                      cx="50%"
-                      cy="50%"
-                      labelLine={true}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {teamStats.filter(t => t.wins > 0).map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Average Score Comparison */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Average Team Score</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={teamStats.filter(t => t.avgScore > 0)}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="avgScore" fill="#8884d8" name="Average Score" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Maximum Score Comparison */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Highest Team Score</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={teamStats.filter(t => t.maxScore > 0)}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="maxScore" fill="#82ca9d" name="Highest Score" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+      
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-cricket-secondary mb-4" />
+          <p className="text-gray-500">Loading statistics...</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {team && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Team Performance</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                  {wins + losses > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={winLossData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {winLossData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">No match data available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Player Roles</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                  {roleData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={roleData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {roleData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">No player data available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          
+          <Tabs defaultValue="batting">
+            <TabsList className="w-full mb-6">
+              <TabsTrigger value="batting" className="flex-1">Batting Statistics</TabsTrigger>
+              <TabsTrigger value="bowling" className="flex-1">Bowling Statistics</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="batting">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Batsmen</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[400px]">
+                  {battingStats.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={battingStats.slice(0, 5)}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                      >
+                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="runs" fill="#8884d8" name="Runs" />
+                        <Bar dataKey="fours" fill="#82ca9d" name="Fours" />
+                        <Bar dataKey="sixes" fill="#ffc658" name="Sixes" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">No batting statistics available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="bowling">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Bowlers</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[400px]">
+                  {bowlingStats.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={bowlingStats.slice(0, 5)}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                      >
+                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="wickets" fill="#8884d8" name="Wickets" />
+                        <Bar dataKey="overs" fill="#82ca9d" name="Overs" />
+                        <Bar dataKey="economy" fill="#ffc658" name="Economy" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">No bowling statistics available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
     </MainLayout>
   );
 };
