@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCricket } from '@/context/CricketContext';
@@ -10,13 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarIcon, MapPin, Trophy, Users, ArrowLeft, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
+import { Match } from '@/types/cricket';
 
 const MatchDetails = () => {
   const { matchId } = useParams<{ matchId: string }>();
   const { matches, teams, players } = useCricket();
   const navigate = useNavigate();
   
-  const [match, setMatch] = useState<any>(null);
+  const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -38,7 +38,31 @@ const MatchDetails = () => {
             .single();
           
           if (error) throw error;
-          matchData = data;
+          
+          if (data) {
+            // Transform Supabase data to match our Match type
+            matchData = {
+              id: data.id,
+              team1Id: data.team1_id,
+              team2Id: data.team2_id,
+              date: data.date,
+              venue: data.venue,
+              status: data.status as 'upcoming' | 'live' | 'completed',
+              tossWinnerId: data.toss_winner_id,
+              tossChoice: data.toss_choice as 'bat' | 'bowl' | undefined,
+              currentInnings: data.current_innings as 1 | 2,
+              totalOvers: data.total_overs,
+              winnerId: data.winner_id,
+              mvpId: data.mvp_id,
+              innings1: data.innings1,
+              innings2: data.innings2,
+              // Keep the additional properties from Supabase for display
+              team1: data.team1,
+              team2: data.team2,
+              winner: data.winner,
+              mvp: data.mvp
+            };
+          }
         }
         
         setMatch(matchData);
@@ -59,7 +83,31 @@ const MatchDetails = () => {
         { event: '*', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
         (payload) => {
           console.log('Match updated:', payload);
-          setMatch(payload.new);
+          // Transform the payload.new into our Match type
+          if (payload.new) {
+            const newData = payload.new as any;
+            setMatch({
+              id: newData.id,
+              team1Id: newData.team1_id,
+              team2Id: newData.team2_id,
+              date: newData.date,
+              venue: newData.venue,
+              status: newData.status as 'upcoming' | 'live' | 'completed',
+              tossWinnerId: newData.toss_winner_id,
+              tossChoice: newData.toss_choice as 'bat' | 'bowl' | undefined,
+              currentInnings: newData.current_innings as 1 | 2,
+              totalOvers: newData.total_overs,
+              winnerId: newData.winner_id,
+              mvpId: newData.mvp_id,
+              // Keep other properties as they were
+              innings1: match?.innings1,
+              innings2: match?.innings2,
+              team1: match?.team1,
+              team2: match?.team2,
+              winner: match?.winner,
+              mvp: match?.mvp
+            });
+          }
         }
       )
       .subscribe();
@@ -100,8 +148,8 @@ const MatchDetails = () => {
   }
   
   // Find teams from the local state for more details
-  const team1 = teams.find(t => t.id === match.team1Id) || { name: match.team1?.name || 'Team 1' };
-  const team2 = teams.find(t => t.id === match.team2Id) || { name: match.team2?.name || 'Team 2' };
+  const team1 = teams.find(t => t.id === match.team1Id) || { name: match.team1?.name || 'Team 1', players: [] };
+  const team2 = teams.find(t => t.id === match.team2Id) || { name: match.team2?.name || 'Team 2', players: [] };
   
   // Get MVP if exists
   const mvp = players.find(p => p.id === match.mvpId) || (match.mvp && { name: match.mvp.name });
@@ -241,7 +289,7 @@ const MatchDetails = () => {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="font-medium text-lg">{mvp.name}</p>
                     <p className="text-sm text-gray-500">
-                      {teams.find(t => t.players.some(p => p.id === match.mvpId))?.name || ''}
+                      {teams.find(t => t.players?.some(p => p.id === match.mvpId))?.name || ''}
                     </p>
                   </div>
                 ) : (

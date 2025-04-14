@@ -52,4 +52,9 @@ export type Match = {
   innings2?: Innings;
   winnerId?: string;
   mvpId?: string;
+  // Additional properties for displaying data from direct Supabase query
+  team1?: { name: string };
+  team2?: { name: string };
+  winner?: { name: string };
+  mvp?: { name: string };
 };
