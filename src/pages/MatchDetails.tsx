@@ -36,11 +36,18 @@ const MatchDetails = () => {
         const { data, error } = await supabase
           .from('matches')
           .select(`
-            *,
-            team1:team1_id(id, name),
-            team2:team2_id(id, name),
-            winner:winner_id(id, name),
-            mvp:mvp_id(id, name)
+            id, 
+            team1_id, 
+            team2_id, 
+            date, 
+            venue, 
+            status, 
+            toss_winner_id, 
+            toss_choice, 
+            current_innings, 
+            total_overs, 
+            winner_id, 
+            mvp_id
           `)
           .eq('id', matchId)
           .single();
@@ -51,6 +58,20 @@ const MatchDetails = () => {
         }
         
         if (data) {
+          const team1Data = teams.find(t => t.id === data.team1_id) || null;
+          const team2Data = teams.find(t => t.id === data.team2_id) || null;
+          const winnerData = data.winner_id ? teams.find(t => t.id === data.winner_id) : null;
+          
+          setTeam1(team1Data);
+          setTeam2(team2Data);
+          setWinner(winnerData);
+          
+          if (data.mvp_id) {
+            const allPlayers = teams.flatMap(team => team.players || []);
+            const mvpData = allPlayers.find(p => p.id === data.mvp_id) || null;
+            setMvp(mvpData);
+          }
+          
           const matchData: Match = {
             id: data.id,
             team1Id: data.team1_id,
@@ -64,10 +85,10 @@ const MatchDetails = () => {
             totalOvers: data.total_overs,
             winnerId: data.winner_id,
             mvpId: data.mvp_id,
-            team1: data.team1 ? { name: data.team1.name as string } : undefined,
-            team2: data.team2 ? { name: data.team2.name as string } : undefined,
-            winner: data.winner ? { name: data.winner.name as string } : undefined,
-            mvp: data.mvp ? { name: data.mvp.name as string } : undefined,
+            team1: team1Data ? { name: team1Data.name } : undefined,
+            team2: team2Data ? { name: team2Data.name } : undefined,
+            winner: winnerData ? { name: winnerData.name } : undefined,
+            mvp: mvpData ? { name: mvpData.name } : undefined,
           };
           
           setMatch(matchData);
@@ -110,20 +131,6 @@ const MatchDetails = () => {
               
               setMatch(updatedMatchData);
             }
-          }
-          
-          const team1Data = teams.find(t => t.id === data.team1_id) || null;
-          const team2Data = teams.find(t => t.id === data.team2_id) || null;
-          const winnerData = data.winner_id ? teams.find(t => t.id === data.winner_id) : null;
-          
-          setTeam1(team1Data);
-          setTeam2(team2Data);
-          setWinner(winnerData);
-          
-          if (data.mvp_id) {
-            const allPlayers = teams.flatMap(team => team.players || []);
-            const mvpData = allPlayers.find(p => p.id === data.mvp_id) || null;
-            setMvp(mvpData);
           }
         }
       } catch (error) {
