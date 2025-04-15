@@ -1,4 +1,3 @@
-
 import { Player } from '@/types/cricket';
 import {
   Dialog,
@@ -11,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Bath, CircleDot, Shield, UserCircle2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface PlayerEditDialogProps {
@@ -20,6 +20,21 @@ interface PlayerEditDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (player: Player) => void;
 }
+
+const getRoleIcon = (role: string) => {
+  switch (role) {
+    case 'Batsman':
+      return <Bath className="h-4 w-4 text-blue-500" />;
+    case 'Bowler':
+      return <CircleDot className="h-4 w-4 text-green-500" />;
+    case 'All-Rounder':
+      return <Shield className="h-4 w-4 text-purple-500" />;
+    case 'Wicket Keeper':
+      return <UserCircle2 className="h-4 w-4 text-yellow-500" />;
+    default:
+      return null;
+  }
+};
 
 const PlayerEditDialog = ({ 
   player, 
@@ -64,16 +79,37 @@ const PlayerEditDialog = ({
             <Label htmlFor="player-role">Role</Label>
             <Select 
               value={editingPlayer.role} 
-              onValueChange={(value) => setEditingPlayer({ ...editingPlayer, role: value as any })}
+              onValueChange={(value: 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket Keeper') => 
+                setEditingPlayer({ ...editingPlayer, role: value })}
             >
               <SelectTrigger id="player-role">
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Batsman">Batsman</SelectItem>
-                <SelectItem value="Bowler">Bowler</SelectItem>
-                <SelectItem value="All-Rounder">All-Rounder</SelectItem>
-                <SelectItem value="Wicket Keeper">Wicket Keeper</SelectItem>
+                <SelectItem value="Batsman">
+                  <div className="flex items-center gap-2">
+                    <Bath className="h-4 w-4 text-blue-500" />
+                    <span>Batsman</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="Bowler">
+                  <div className="flex items-center gap-2">
+                    <CircleDot className="h-4 w-4 text-green-500" />
+                    <span>Bowler</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="All-Rounder">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-purple-500" />
+                    <span>All-Rounder</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="Wicket Keeper">
+                  <div className="flex items-center gap-2">
+                    <UserCircle2 className="h-4 w-4 text-yellow-500" />
+                    <span>Wicket Keeper</span>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

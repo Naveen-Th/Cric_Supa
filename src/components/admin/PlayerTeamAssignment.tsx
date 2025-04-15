@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useCricket } from '@/context/CricketContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Check, ChevronLeft, ChevronRight, UserMinus, UserPlus } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, UserMinus, UserPlus, Users, Sword, CircleDot, Shield, UserCircle2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { Player, Team } from '@/types/cricket';
 
@@ -14,6 +13,21 @@ interface PlayerTeamAssignmentProps {
   teamId: string;
   onBack?: () => void;
 }
+
+const getRoleIcon = (role: string) => {
+  switch (role) {
+    case 'Batsman':
+      return <Sword className="h-4 w-4 text-blue-500" />;
+    case 'Bowler':
+      return <CircleDot className="h-4 w-4 text-green-500" />;
+    case 'All-Rounder':
+      return <Shield className="h-4 w-4 text-purple-500" />;
+    case 'Wicket Keeper':
+      return <UserCircle2 className="h-4 w-4 text-yellow-500" />;
+    default:
+      return null;
+  }
+};
 
 const PlayerTeamAssignment = ({ teamId, onBack }: PlayerTeamAssignmentProps) => {
   const { teams, players, updatePlayer } = useCricket();
@@ -196,8 +210,9 @@ const PlayerTeamAssignment = ({ teamId, onBack }: PlayerTeamAssignmentProps) => 
                             <div className="font-medium">{player.name}</div>
                             <Badge
                               variant="outline"
-                              className="mt-1"
+                              className="mt-1 flex items-center gap-1.5"
                             >
+                              {getRoleIcon(player.role)}
                               {player.role}
                             </Badge>
                           </div>
@@ -246,16 +261,9 @@ const PlayerTeamAssignment = ({ teamId, onBack }: PlayerTeamAssignmentProps) => 
                           <div className="font-medium">{player.name}</div>
                           <Badge
                             variant="outline"
-                            className={`mt-1 ${
-                              player.role === 'Batsman' 
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : player.role === 'Bowler'
-                                ? 'bg-green-50 text-green-700 border-green-200'
-                                : player.role === 'Wicket Keeper'
-                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                : 'bg-purple-50 text-purple-700 border-purple-200'
-                            }`}
+                            className="mt-1 flex items-center gap-1.5"
                           >
+                            {getRoleIcon(player.role)}
                             {player.role}
                           </Badge>
                         </div>

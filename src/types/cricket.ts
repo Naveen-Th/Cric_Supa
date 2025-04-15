@@ -26,14 +26,16 @@ export type Team = {
   status: 'active' | 'inactive';
 };
 
-export type Innings = {
+
+export type Innings  = {
   teamId: string;
   runs: number;
   wickets: number;
   overs: number;
   battingOrder: string[];
+  bowlerId: string;
   extras: number;
-};
+}
 
 export type MatchStatus = 'upcoming' | 'live' | 'completed';
 

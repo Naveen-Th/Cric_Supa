@@ -48,24 +48,6 @@ interface LiveMatchControlProps {
 const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   const { updateScore, updateOvers, switchInnings, endMatch } = useCricket();
   
-  // Get batting and bowling teams
-  const team1 = teams.find(t => t.id === match.team1Id);
-  const team2 = teams.find(t => t.id === match.team2Id);
-  
-  if (!team1 || !team2) return null;
-  
-  const currentInnings = match.currentInnings;
-  const battingTeamId = currentInnings === 1 
-    ? (match.innings1?.teamId || match.team1Id)
-    : (match.innings2?.teamId || match.team2Id);
-    
-  const bowlingTeamId = battingTeamId === match.team1Id ? match.team2Id : match.team1Id;
-  
-  const battingTeam = teams.find(t => t.id === battingTeamId);
-  const bowlingTeam = teams.find(t => t.id === bowlingTeamId);
-  
-  if (!battingTeam || !bowlingTeam) return null;
-  
   // States for selected players and match control
   const [striker, setStriker] = useState<string | null>(null);
   const [nonStriker, setNonStriker] = useState<string | null>(null);
@@ -80,8 +62,21 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   const [selectedWinner, setSelectedWinner] = useState<string>('');
   const [selectedMVP, setSelectedMVP] = useState<string>('');
   
-  // Current innings state
+  // Get teams and match state
+  const team1 = teams.find(t => t.id === match.team1Id);
+  const team2 = teams.find(t => t.id === match.team2Id);
+  
+  const currentInnings = match.currentInnings;
   const currentInningsData = currentInnings === 1 ? match.innings1 : match.innings2;
+  
+  const battingTeamId = currentInnings === 1 
+    ? (match.innings1?.teamId || match.team1Id)
+    : (match.innings2?.teamId || match.team2Id);
+    
+  const bowlingTeamId = battingTeamId === match.team1Id ? match.team2Id : match.team1Id;
+  
+  const battingTeam = teams.find(t => t.id === battingTeamId);
+  const bowlingTeam = teams.find(t => t.id === bowlingTeamId);
 
   // Load initial state from localStorage
   useEffect(() => {
@@ -115,7 +110,15 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     currentInningsData?.runs,
     dismissedPlayers
   ]);
-  
+
+  if (!team1 || !team2 || !battingTeam || !bowlingTeam) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-red-600">Unable to load match data</p>
+      </div>
+    );
+  }
+
   // Update player stats in Supabase
   const updatePlayerStats = async (playerId: string, runs: number, isWicket: boolean = false) => {
     try {
@@ -252,21 +255,12 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     return oversPart + newBallsPart / 10; // Increment balls
   };
 
-  // Handle run scoring
+  // Modify the handleAddRuns function to swap striker/non-striker after odd runs
   const handleAddRuns = async (runs: number, isSpecialDelivery: boolean = false) => {
-    if (!striker) {
+    if (!striker || !selectedBowler) {
       toast({
-        title: "Striker not selected",
-        description: "Please select a striker first",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!selectedBowler) {
-      toast({
-        title: "Bowler not selected",
-        description: "Please select a bowler first",
+        title: "Players not selected",
+        description: "Please select both striker and bowler",
         variant: "destructive",
       });
       return;
@@ -285,11 +279,19 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       
       // Update bowler's overs
       await updateBowlerOvers(selectedBowler, newOvers);
+
+      // Swap striker and non-striker for odd runs or end of over
+      const isEndOfOver = Math.floor(newOvers * 10) % 10 === 0;
+      if ((runs % 2 === 1) || isEndOfOver) {
+        const temp = striker;
+        setStriker(nonStriker);
+        setNonStriker(temp);
+      }
     }
     
     toast({
       title: `${runs} run${runs !== 1 ? 's' : ''} added`,
-      description: `Score updated for ${battingTeam.name}`,
+      description: `Score updated for ${battingTeam?.name}`,
     });
   };
 
@@ -342,7 +344,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     });
   };
 
-  // Handle wicket
+  // Modify handleWicket to set new striker and maintain non-striker
   const handleWicket = async () => {
     if (!striker || !selectedBowler) {
       toast({
@@ -371,10 +373,10 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       description: `${striker} dismissed, bowled by ${selectedBowler}`,
     });
     
-    // Reset striker
+    // Reset striker but keep non-striker
     setStriker(null);
   };
-  
+
   // Handle over update - correcting the ball and over logic
   const handleUpdateOvers = async () => {
     if (customOvers <= 0) {
@@ -427,20 +429,21 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       return;
     }
     
-    switchInnings(match.id);
-    
-    // Reset player selections
+    // Reset player selections and dismissed players for new innings
     setStriker(null);
     setNonStriker(null);
     setSelectedBowler(null);
     setDismissedPlayers([]);
     
-    // Clear localStorage for this match
+    // Clear localStorage for this match to reset batting partnership
     localStorage.removeItem(STORAGE_KEY + match.id);
+    
+    // Switch innings in match state
+    switchInnings(match.id);
     
     toast({
       title: "Innings switched",
-      description: `Now ${bowlingTeam.name} is batting`,
+      description: `Now ${bowlingTeam?.name} is batting`,
     });
   };
 
