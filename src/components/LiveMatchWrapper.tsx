@@ -1,6 +1,7 @@
 
 import { useCricket } from '@/context/CricketContext';
 import { Match, Team } from '@/types/cricket';
+import { BattingPartnership } from '@/context/cricket/cricketTypes';
 import LiveMatch from './LiveMatch';
 import LiveMatchControl from './admin/LiveMatchControl';
 import { useEffect, useState } from 'react';
@@ -20,14 +21,14 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
     // Function to fetch the current batting partnership from the database
     const fetchBattingPartnership = async () => {
       try {
+        // Since batting_partnerships is a custom table, we need to use a different query approach
         const { data, error } = await supabase
           .from('batting_partnerships')
           .select('*')
           .eq('match_id', match.id)
           .eq('innings_number', match.currentInnings)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
         
         if (error) {
           console.error('Error fetching batting partnership:', error);
@@ -41,9 +42,10 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
           return;
         }
         
-        if (data) {
-          setStriker(data.striker_id);
-          setNonStriker(data.non_striker_id);
+        if (data && data.length > 0) {
+          const partnership = data[0] as BattingPartnership;
+          setStriker(partnership.striker_id);
+          setNonStriker(partnership.non_striker_id);
         }
       } catch (error) {
         console.error('Error in fetchBattingPartnership:', error);
@@ -66,8 +68,10 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
         (payload) => {
           console.log('Batting partnership updated:', payload);
           if (payload.new && payload.new.innings_number === match.currentInnings) {
-            setStriker(payload.new.striker_id);
-            setNonStriker(payload.new.non_striker_id);
+            // Cast the payload to BattingPartnership type
+            const partnership = payload.new as BattingPartnership;
+            setStriker(partnership.striker_id);
+            setNonStriker(partnership.non_striker_id);
           }
         }
       )

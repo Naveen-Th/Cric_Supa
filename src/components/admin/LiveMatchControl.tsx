@@ -48,7 +48,6 @@ interface LiveMatchControlProps {
 const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   const { updateScore, updateOvers, switchInnings, endMatch } = useCricket();
   
-  // States for selected players and match control
   const [striker, setStriker] = useState<string | null>(null);
   const [nonStriker, setNonStriker] = useState<string | null>(null);
   const [selectedBowler, setSelectedBowler] = useState<string | null>(null);
@@ -57,12 +56,10 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   const [isWicket, setIsWicket] = useState<boolean>(false);
   const [dismissedPlayers, setDismissedPlayers] = useState<string[]>([]); 
   
-  // States for match ending
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<string>('');
   const [selectedMVP, setSelectedMVP] = useState<string>('');
   
-  // Get teams and match state
   const team1 = teams.find(t => t.id === match.team1Id);
   const team2 = teams.find(t => t.id === match.team2Id);
   
@@ -78,29 +75,25 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   const battingTeam = teams.find(t => t.id === battingTeamId);
   const bowlingTeam = teams.find(t => t.id === bowlingTeamId);
 
-  // Update the batting partnership in Supabase
   const updateBattingPartnership = async (strikerId: string | null, nonStrikerId: string | null) => {
     try {
       if (!match.id) return;
       
       if (strikerId || nonStrikerId) {
-        // Check if a partnership already exists for this innings
-        const { data: existingPartnership, error: queryError } = await supabase
+        const { data, error: queryError } = await supabase
           .from('batting_partnerships')
           .select('*')
           .eq('match_id', match.id)
           .eq('innings_number', match.currentInnings)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
         
         if (queryError) {
           console.error('Error checking batting partnership:', queryError);
           return;
         }
         
-        if (existingPartnership && existingPartnership.length > 0) {
-          // Update existing partnership
+        if (data && data.length > 0) {
           const { error: updateError } = await supabase
             .from('batting_partnerships')
             .update({
@@ -108,19 +101,18 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
               non_striker_id: nonStrikerId,
               updated_at: new Date().toISOString()
             })
-            .eq('id', existingPartnership[0].id);
+            .eq('id', data[0].id);
             
           if (updateError) {
             console.error('Error updating batting partnership:', updateError);
           }
         } else {
-          // Create new partnership
           const { error: insertError } = await supabase
             .from('batting_partnerships')
             .insert({
               match_id: match.id,
               innings_number: match.currentInnings,
-              striker_id: strikerId,
+              striker_id: strikerId || '',
               non_striker_id: nonStrikerId
             });
             
@@ -134,10 +126,8 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     }
   };
 
-  // Load initial state from localStorage and the database
   useEffect(() => {
     const loadInitialState = async () => {
-      // Try to load from database first
       try {
         const { data, error } = await supabase
           .from('batting_partnerships')
@@ -145,14 +135,13 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
           .eq('match_id', match.id)
           .eq('innings_number', match.currentInnings)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
           
-        if (!error && data) {
-          setStriker(data.striker_id);
-          setNonStriker(data.non_striker_id);
+        if (!error && data && data.length > 0) {
+          const partnership = data[0] as BattingPartnership;
+          setStriker(partnership.striker_id);
+          setNonStriker(partnership.non_striker_id);
         } else {
-          // Fallback to localStorage
           const savedState = loadFromLocalStorage(match.id);
           if (savedState) {
             setStriker(savedState.striker);
@@ -165,7 +154,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
         }
       } catch (error) {
         console.error('Error loading match state:', error);
-        // Fallback to localStorage
         const savedState = loadFromLocalStorage(match.id);
         if (savedState) {
           setStriker(savedState.striker);
@@ -181,9 +169,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     loadInitialState();
   }, [match.id, match.currentInnings]);
 
-  // Save state to localStorage and update database whenever it changes
   useEffect(() => {
-    // Update local storage
     saveToLocalStorage(match.id, {
       striker,
       nonStriker,
@@ -193,7 +179,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       dismissedPlayers,
     });
     
-    // Update database
     if (striker !== null || nonStriker !== null) {
       updateBattingPartnership(striker, nonStriker);
     }
@@ -207,7 +192,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     dismissedPlayers
   ]);
 
-  // Handle striker or non-striker change
   const handleBatsmanChange = (playerId: string, role: 'striker' | 'nonStriker') => {
     if (role === 'striker') {
       setStriker(playerId);
@@ -215,18 +199,15 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       setNonStriker(playerId);
     }
     
-    // Call updateBattingPartnership to save the change to the database
     const updatedStriker = role === 'striker' ? playerId : striker;
     const updatedNonStriker = role === 'nonStriker' ? playerId : nonStriker;
     updateBattingPartnership(updatedStriker, updatedNonStriker);
   };
 
-  // Update player stats in Supabase
   const updatePlayerStats = async (playerId: string, runs: number, isWicket: boolean = false) => {
     try {
       if (!playerId) return;
       
-      // Get current batting stats
       const { data: battingData, error: battingError } = await supabase
         .from('batting_stats')
         .select('*')
@@ -238,12 +219,10 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
         return;
       }
       
-      // Calculate new stats
       const isFour = runs === 4;
       const isSix = runs === 6;
       
       if (battingData) {
-        // Update existing stats
         await supabase
           .from('batting_stats')
           .update({
@@ -254,7 +233,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
           })
           .eq('player_id', playerId);
       } else {
-        // Create new stats
         await supabase
           .from('batting_stats')
           .insert({
@@ -266,7 +244,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
           });
       }
       
-      // If it's a wicket, update bowling stats
       if (isWicket && selectedBowler) {
         const { data: bowlingData, error: bowlingError } = await supabase
           .from('bowling_stats')
@@ -280,7 +257,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
         }
         
         if (bowlingData) {
-          // Update existing stats
           await supabase
             .from('bowling_stats')
             .update({
@@ -289,7 +265,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
             })
             .eq('player_id', selectedBowler);
         } else {
-          // Create new stats
           await supabase
             .from('bowling_stats')
             .insert({
@@ -304,8 +279,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       console.error('Error updating player stats:', error);
     }
   };
-  
-  // Update bowler's overs
+
   const updateBowlerOvers = async (bowlerId: string, overs: number) => {
     try {
       if (!bowlerId) return;
@@ -322,7 +296,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       }
       
       if (bowlingData) {
-        // Update existing stats
         await supabase
           .from('bowling_stats')
           .update({
@@ -330,7 +303,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
           })
           .eq('player_id', bowlerId);
       } else {
-        // Create new stats
         await supabase
           .from('bowling_stats')
           .insert({
@@ -344,20 +316,18 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       console.error('Error updating bowler overs:', error);
     }
   };
-  
-  // Calculate new overs based on balls
+
   const calculateNewOvers = (currentOvers: number): number => {
     const oversPart = Math.floor(currentOvers);
     const ballsPart = Math.round((currentOvers - oversPart) * 10);
 
     const newBallsPart = ballsPart + 1;
     if (newBallsPart > 5) {
-      return oversPart + 1; // Move to the next over
+      return oversPart + 1;
     }
-    return oversPart + newBallsPart / 10; // Increment balls
+    return oversPart + newBallsPart / 10;
   };
 
-  // Modify the handleAddRuns function to swap striker/non-striker after odd runs
   const handleAddRuns = async (runs: number, isSpecialDelivery: boolean = false) => {
     if (!striker || !selectedBowler) {
       toast({
@@ -368,28 +338,22 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       return;
     }
     
-    // Update match score
     updateScore(match.id, runs);
     
-    // Update player stats if not a special delivery (wide/no-ball)
     if (!isSpecialDelivery) {
       await updatePlayerStats(striker, runs);
 
-      // Increment balls for valid deliveries
       const newOvers = calculateNewOvers(currentInningsData?.overs || 0);
       updateOvers(match.id, newOvers);
       
-      // Update bowler's overs
       await updateBowlerOvers(selectedBowler, newOvers);
 
-      // Swap striker and non-striker for odd runs or end of over
       const isEndOfOver = Math.floor(newOvers * 10) % 10 === 0;
       if ((runs % 2 === 1) || isEndOfOver) {
         const temp = striker;
         setStriker(nonStriker);
         setNonStriker(temp);
         
-        // Update database with swapped batsmen
         updateBattingPartnership(nonStriker, temp);
       }
     }
@@ -400,7 +364,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     });
   };
 
-  // Handle special deliveries
   const handleSpecialDelivery = async (type: 'wide' | 'no-ball') => {
     if (!selectedBowler) {
       toast({
@@ -411,10 +374,8 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       return;
     }
 
-    // Add 1 run to the score without increasing ball count
     updateScore(match.id, 1);
     
-    // For special deliveries, only update runs in bowling stats, not overs
     try {
       const { data: bowlingData } = await supabase
         .from('bowling_stats')
@@ -449,7 +410,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     });
   };
 
-  // Modify handleWicket to set new striker and maintain non-striker
   const handleWicket = async () => {
     if (!striker || !selectedBowler) {
       toast({
@@ -463,13 +423,10 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     setIsWicket(true);
     setDismissedPlayers(prev => [...prev, striker]);
     
-    // Update match score (0 runs, 1 wicket)
     updateScore(match.id, 0, 1);
     
-    // Update player stats
     await updatePlayerStats(striker, 0, true);
 
-    // Increment balls for valid deliveries
     const newOvers = calculateNewOvers(currentInningsData?.overs || 0);
     updateOvers(match.id, newOvers);
     
@@ -478,14 +435,11 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       description: `${striker} dismissed, bowled by ${selectedBowler}`,
     });
     
-    // Reset striker but keep non-striker
     setStriker(null);
     
-    // Update database - striker is now null
     updateBattingPartnership(null, nonStriker);
   };
 
-  // Handle over update - correcting the ball and over logic
   const handleUpdateOvers = async () => {
     if (customOvers <= 0) {
       toast({
@@ -505,19 +459,16 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       return;
     }
     
-    // Fix the over format (0.5 should be followed by 1.0, not 0.6)
     let formattedOvers = customOvers;
     const oversPart = Math.floor(customOvers);
-    const ballsPart = Math.round((customOvers - oversPart) * 10); // Get decimal part
+    const ballsPart = Math.round((customOvers - oversPart) * 10);
     
     if (ballsPart > 5) {
-      formattedOvers = oversPart + 1; // Move to next over
+      formattedOvers = oversPart + 1;
     }
     
-    // Update match overs
     updateOvers(match.id, formattedOvers);
     
-    // Update bowler stats
     await updateBowlerOvers(selectedBowler, formattedOvers);
     
     toast({
@@ -525,8 +476,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       description: `Updated to ${formattedOvers} overs`,
     });
   };
-  
-  // Handle innings switch
+
   const handleSwitchInnings = () => {
     if (currentInnings !== 1) {
       toast({
@@ -537,16 +487,13 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       return;
     }
     
-    // Reset player selections and dismissed players for new innings
     setStriker(null);
     setNonStriker(null);
     setSelectedBowler(null);
     setDismissedPlayers([]);
     
-    // Clear localStorage for this match to reset batting partnership
     localStorage.removeItem(STORAGE_KEY + match.id);
     
-    // Switch innings in match state
     switchInnings(match.id);
     
     toast({
@@ -554,7 +501,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       description: `Now ${bowlingTeam?.name} is batting`,
     });
     
-    // Remove old partnerships from database - new ones will be created when batsmen are selected
     supabase
       .from('batting_partnerships')
       .delete()
@@ -565,7 +511,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       });
   };
 
-  // Modify the handleEndMatch function
   const handleEndMatch = () => {
     if (!selectedMVP) {
       toast({
@@ -576,7 +521,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       return;
     }
 
-    // Update match with winner
     endMatch(match.id, selectedWinner, selectedMVP);
     setShowEndMatchDialog(false);
   };
@@ -742,7 +686,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
         </Button>
       </div>
       
-      {/* End Match Dialog */}
       <Dialog open={showEndMatchDialog} onOpenChange={setShowEndMatchDialog}>
         <DialogContent className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200">
           <DialogHeader className="bg-slate-100/50 rounded-t-lg p-4">

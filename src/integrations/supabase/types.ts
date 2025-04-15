@@ -51,6 +51,44 @@ export type Database = {
           },
         ]
       }
+      batting_partnerships: {
+        Row: {
+          created_at: string | null
+          id: string
+          innings_number: number
+          match_id: string
+          non_striker_id: string | null
+          striker_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          innings_number: number
+          match_id: string
+          non_striker_id?: string | null
+          striker_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          innings_number?: number
+          match_id?: string
+          non_striker_id?: string | null
+          striker_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batting_partnerships_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       batting_stats: {
         Row: {
           balls_faced: number | null

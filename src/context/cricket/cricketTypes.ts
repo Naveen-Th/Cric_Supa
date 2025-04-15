@@ -1,3 +1,4 @@
+
 import { Team, Player, Match } from '@/types/cricket';
 
 export interface CricketContextType {
@@ -26,4 +27,15 @@ export interface CricketContextType {
   updateScore: (matchId: string, runs: number, wickets?: number) => Promise<void>;
   updateOvers: (matchId: string, overs: number) => Promise<void>;
   switchInnings: (matchId: string) => Promise<void>;
+}
+
+// Add interface for batting partnership
+export interface BattingPartnership {
+  id: string;
+  match_id: string;
+  striker_id: string;
+  non_striker_id: string | null;
+  innings_number: number;
+  created_at?: string;
+  updated_at?: string;
 }

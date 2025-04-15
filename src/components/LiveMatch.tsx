@@ -20,25 +20,20 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
   const { updateScore, updateOvers, switchInnings, endMatch } = useCricket();
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
   
-  // Get team objects
   const team1 = teams.find(team => team.id === match.team1Id);
   const team2 = teams.find(team => team.id === match.team2Id);
   
-  // Current batting team
   const currentInnings = match.currentInnings === 1 ? match.innings1 : match.innings2;
   const battingTeamId = currentInnings?.teamId || '';
   const battingTeam = teams.find(team => team.id === battingTeamId);
   
-  // Current bowling team
   const bowlingTeamId = battingTeamId === match.team1Id ? match.team2Id : match.team1Id;
   const bowlingTeam = teams.find(team => team.id === bowlingTeamId);
   
-  // Calculate target for second innings
   const target = match.currentInnings === 2 && match.innings1 
     ? match.innings1.runs + 1 
     : undefined;
   
-  // Calculate required run rate for second innings
   const requiredRunRate = (() => {
     if (match.currentInnings !== 2 || !match.innings1 || !match.innings2) return undefined;
     const remainingRuns = match.innings1.runs + 1 - match.innings2.runs;
@@ -47,19 +42,15 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
     return (remainingRuns / remainingOvers).toFixed(2);
   })();
 
-  // Add winner determination logic
   const determineWinner = () => {
     if (!match.innings1) return null;
     
-    // First innings complete and second innings hasn't started
     if (match.currentInnings === 1 && 
         (match.innings1.wickets === 10 || match.innings1.overs >= match.totalOvers)) {
-      return null; // No winner yet, innings break
+      return null;
     }
     
-    // Second innings scenarios
     if (match.currentInnings === 2 && match.innings2) {
-      // Team 2 surpassed target
       if (match.innings2.runs > match.innings1.runs) {
         return {
           team: team2,
@@ -67,7 +58,6 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
         };
       }
       
-      // All overs complete or all wickets fallen
       if (match.innings2.overs >= match.totalOvers || match.innings2.wickets === 10) {
         if (match.innings2.runs < match.innings1.runs) {
           return {
@@ -84,7 +74,6 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
 
   const winner = determineWinner();
 
-  // Admin controls for updating the match
   const handleAddRuns = (runs: number) => {
     if (!match.id) return;
     updateScore(match.id, runs);
@@ -115,7 +104,6 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
     endMatch(match.id, winnerId, mvpId);
   }, [match, endMatch]);
 
-  // Check if innings should switch automatically
   useEffect(() => {
     if (
       isAdmin &&
@@ -123,18 +111,15 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
       match.innings1 &&
       (match.innings1.wickets === 10 || match.innings1.overs >= match.totalOvers)
     ) {
-      // Auto switch innings
       handleSwitchInnings();
     }
     
-    // Check if match should end (team 2 all out or overs complete)
     if (
       isAdmin &&
       match.currentInnings === 2 &&
       match.innings2 &&
       (match.innings2.wickets === 10 || match.innings2.overs >= match.totalOvers)
     ) {
-      // Determine winner
       if (match.innings1 && match.innings2) {
         const winnerId = match.innings2.runs > match.innings1.runs 
           ? match.team2Id 
@@ -143,7 +128,6 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
       }
     }
     
-    // Check if team 2 has chased the target
     if (
       isAdmin &&
       match.currentInnings === 2 &&
@@ -212,7 +196,6 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
       </CardHeader>
       
       <CardContent className="p-6 space-y-6">
-        {/* Current Innings Score Section */}
         <div className="bg-gradient-to-br from-card to-muted/50 rounded-xl p-6 shadow-inner">
           <div className="space-y-4">
             <div className="flex justify-between items-start">
@@ -248,7 +231,6 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
                 className="h-2 bg-muted"
               />
 
-              {/* Batting Partnership Section */}
               <div className="mt-4">
                 <div className="flex flex-col space-y-3">
                   {striker && battingTeam?.players && (
@@ -304,7 +286,6 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
           </div>
         </div>
 
-        {/* Target and Required Rate Section */}
         {match.currentInnings === 2 && target && (
           <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-cricket-secondary/10 to-cricket-secondary/5 p-6">
             <div className="space-y-4">
