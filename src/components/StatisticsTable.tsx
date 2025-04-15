@@ -1,9 +1,8 @@
-
 import { Player } from '@/types/cricket';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowUpDown, Trophy } from 'lucide-react';
+import { ArrowUpDown, Trophy, BarChart2, ArrowUpIcon, ArrowDownIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -26,6 +25,13 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
       setSortField(fieldName);
       setSortOrder('desc');
     }
+  };
+
+  const getSortIcon = (fieldName: string) => {
+    if (sortField !== fieldName) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
+    return sortOrder === 'asc' 
+      ? <ArrowUpIcon className="ml-2 h-4 w-4" />
+      : <ArrowDownIcon className="ml-2 h-4 w-4" />;
   };
   
   // Sort players based on the selected field and order
@@ -53,12 +59,13 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
           fieldA = statsA.sixes || 0;
           fieldB = statsB.sixes || 0;
           break;
-        case 'strikerate':
+        case 'strikerate': {
           const srA = statsA.ballsFaced ? ((statsA.runs / statsA.ballsFaced) * 100) : 0;
           const srB = statsB.ballsFaced ? ((statsB.runs / statsB.ballsFaced) * 100) : 0;
           fieldA = srA;
           fieldB = srB;
           break;
+        }
         default:
           fieldA = a.name;
           fieldB = b.name;
@@ -80,13 +87,14 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
           fieldA = statsA.runs || 0;
           fieldB = statsB.runs || 0;
           break;
-        case 'economy':
+        case 'economy': {
           const econA = statsA.overs ? (statsA.runs / statsA.overs) : 999;
           const econB = statsB.overs ? (statsB.runs / statsB.overs) : 999;
           fieldA = econA;
           fieldB = econB;
           // For economy, lower is better
           return sortOrder === 'asc' ? fieldA - fieldB : fieldB - fieldA;
+        }
         default:
           fieldA = a.name;
           fieldB = b.name;
@@ -125,7 +133,11 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8">
-            <Trophy className="h-12 w-12 text-gray-200 mb-4" />
+            {type === 'batting' ? (
+              <Trophy className="h-12 w-12 text-gray-200 mb-4" />
+            ) : (
+              <BarChart2 className="h-12 w-12 text-gray-200 mb-4" />
+            )}
             <p className="text-gray-500">No statistics available</p>
           </div>
         </CardContent>
@@ -148,31 +160,31 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('runs')}>
                       Runs
-                      {sortField === 'runs' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('runs')}
                     </Button>
                   </TableHead>
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('ballsFaced')}>
                       Balls
-                      {sortField === 'ballsFaced' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('ballsFaced')}
                     </Button>
                   </TableHead>
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('strikerate')}>
                       SR
-                      {sortField === 'strikerate' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('strikerate')}
                     </Button>
                   </TableHead>
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('fours')}>
                       4s
-                      {sortField === 'fours' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('fours')}
                     </Button>
                   </TableHead>
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('sixes')}>
                       6s
-                      {sortField === 'sixes' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('sixes')}
                     </Button>
                   </TableHead>
                 </>
@@ -181,25 +193,25 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('wickets')}>
                       Wickets
-                      {sortField === 'wickets' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('wickets')}
                     </Button>
                   </TableHead>
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('overs')}>
                       Overs
-                      {sortField === 'overs' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('overs')}
                     </Button>
                   </TableHead>
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('runs')}>
                       Runs
-                      {sortField === 'runs' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('runs')}
                     </Button>
                   </TableHead>
                   <TableHead>
                     <Button variant="ghost" size="sm" onClick={() => sortPlayers('economy')}>
                       Econ
-                      {sortField === 'economy' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                      {getSortIcon('economy')}
                     </Button>
                   </TableHead>
                 </>

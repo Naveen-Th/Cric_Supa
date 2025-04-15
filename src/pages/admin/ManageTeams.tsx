@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useCricket } from '@/context/CricketContext';
 import MainLayout from '@/components/layout/MainLayout';
@@ -7,7 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Edit, Trash2, Users } from 'lucide-react';
+import { 
+  PlusCircle, 
+  Edit, 
+  Trash2, 
+  Users, 
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +36,40 @@ const ManageTeams = () => {
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState<string | null>(null);
-  
+
+  const [sortField, setSortField] = useState<'name' | 'players'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (field: 'name' | 'players') => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const getSortIcon = (field: 'name' | 'players') => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 opacity-50" />;
+    }
+    return sortOrder === 'asc' 
+      ? <ArrowUp className="h-4 w-4" />
+      : <ArrowDown className="h-4 w-4" />;
+  };
+
+  const sortedTeams = [...teams].sort((a, b) => {
+    if (sortField === 'name') {
+      return sortOrder === 'asc' 
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    } else {
+      return sortOrder === 'asc'
+        ? (a.players?.length || 0) - (b.players?.length || 0)
+        : (b.players?.length || 0) - (a.players?.length || 0);
+    }
+  });
+
   const handleCreateTeam = async () => {
     if (!teamName.trim()) return;
     
@@ -80,14 +120,30 @@ const ManageTeams = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Team Name</TableHead>
-                  <TableHead>Players</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Team Name
+                      {getSortIcon('name')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort('players')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Players
+                      {getSortIcon('players')}
+                    </div>
+                  </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {teams.map(team => (
+                {sortedTeams.map(team => (
                   <TableRow key={team.id}>
                     <TableCell className="font-medium">{team.name}</TableCell>
                     <TableCell>

@@ -12,9 +12,11 @@ interface LiveMatchProps {
   match: Match;
   teams: Team[];
   isAdmin?: boolean;
+  striker?: string | null;
+  nonStriker?: string | null;
 }
 
-const LiveMatch = ({ match, teams, isAdmin = false }: LiveMatchProps) => {
+const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveMatchProps) => {
   const { updateScore, updateOvers, switchInnings, endMatch } = useCricket();
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
   
@@ -246,42 +248,56 @@ const LiveMatch = ({ match, teams, isAdmin = false }: LiveMatchProps) => {
                 className="h-2 bg-muted"
               />
 
-              {/* Add batting and bowling info */}
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{currentInnings.battingOrder[0] ? 
-                        battingTeam.players.find(p => p.id === currentInnings.battingOrder[0])?.name 
-                        : "Striker"}</span>
-                      <span className="text-muted-foreground">
-                        {currentInnings.battingOrder[0] ? 
-                          `${battingTeam.players.find(p => p.id === currentInnings.battingOrder[0])?.battingStats?.runs || 0}(${battingTeam.players.find(p => p.id === currentInnings.battingOrder[0])?.battingStats?.ballsFaced || 0})`
-                          : ""}
-                      </span>
+              {/* Batting Partnership Section */}
+              <div className="mt-4">
+                <div className="flex flex-col space-y-3">
+                  {striker && battingTeam?.players && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100">
+                          *
+                        </Badge>
+                        <span className="font-semibold">
+                          {battingTeam.players.find(p => p.id === striker)?.name || 'Striker'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="tabular-nums">
+                          {battingTeam.players.find(p => p.id === striker)?.battingStats?.runs || 0}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({battingTeam.players.find(p => p.id === striker)?.battingStats?.ballsFaced || 0})
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">{currentInnings.battingOrder[1] ? 
-                        battingTeam.players.find(p => p.id === currentInnings.battingOrder[1])?.name 
-                        : "Non-striker"}</span>
-                      <span className="text-muted-foreground">
-                        {currentInnings.battingOrder[1] ? 
-                          `${battingTeam.players.find(p => p.id === currentInnings.battingOrder[1])?.battingStats?.runs || 0}(${battingTeam.players.find(p => p.id === currentInnings.battingOrder[1])?.battingStats?.ballsFaced || 0})`
-                          : ""}
-                      </span>
+                  )}
+                  
+                  {nonStriker && battingTeam?.players && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="opacity-50">
+                          •
+                        </Badge>
+                        <span className="text-muted-foreground">
+                          {battingTeam.players.find(p => p.id === nonStriker)?.name || 'Non-striker'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="tabular-nums">
+                          {battingTeam.players.find(p => p.id === nonStriker)?.battingStats?.runs || 0}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({battingTeam.players.find(p => p.id === nonStriker)?.battingStats?.ballsFaced || 0})
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Bowling: </span>
-                      <span className="font-medium">{bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.name || "Bowler"}</span>
+                  )}
+
+                  {!striker && !nonStriker && (
+                    <div className="text-sm text-muted-foreground italic">
+                      Waiting for batsmen...
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.bowlingStats ? 
-                        `${bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.bowlingStats?.wickets || 0}-${bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.bowlingStats?.runs || 0} (${bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.bowlingStats?.overs || 0})`
-                        : ""}
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

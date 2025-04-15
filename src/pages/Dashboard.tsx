@@ -1,19 +1,18 @@
-
 import { useCricket } from '@/context/CricketContext';
 import MainLayout from '@/components/layout/MainLayout';
-import LiveMatch from '@/components/LiveMatch';
+import LiveMatchWrapper from '@/components/LiveMatchWrapper';
 import TeamCard from '@/components/TeamCard';
 import TeamStatsCard from '@/components/TeamStatsCard';
 import MatchCard from '@/components/MatchCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Trophy, Users, Calendar, Loader2, BarChart4 } from 'lucide-react';
+import { ArrowRight, Trophy, Users, Calendar, BarChart4 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import StatisticsTable from '@/components/StatisticsTable';
 
 const Dashboard = () => {
-  const { liveMatch, activeTeams, matches, teams, players, loading } = useCricket();
+  const { liveMatch, activeTeams, matches, teams, players } = useCricket();
   const navigate = useNavigate();
   
   // Get upcoming matches (not live, not completed)
@@ -34,17 +33,6 @@ const Dashboard = () => {
     .sort((a, b) => (b.bowlingStats?.wickets || 0) - (a.bowlingStats?.wickets || 0))
     .slice(0, 5);
   
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-cricket-secondary mb-4" />
-          <p className="text-gray-500">Loading dashboard data...</p>
-        </div>
-      </MainLayout>
-    );
-  }
-  
   return (
     <MainLayout>
       <div className="grid grid-cols-1 gap-6">
@@ -56,7 +44,7 @@ const Dashboard = () => {
               <span className="h-3 w-3 rounded-full bg-cricket-ball mr-2 animate-pulse"></span>
               Live Match
             </h2>
-            <LiveMatch match={liveMatch} teams={teams} />
+            <LiveMatchWrapper match={liveMatch} teams={teams} />
           </div>
         ) : (
           <div className="mb-8 p-6 bg-gray-50 rounded-lg text-center">

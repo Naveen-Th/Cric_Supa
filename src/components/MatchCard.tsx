@@ -1,10 +1,9 @@
-
 import { Match, Team } from '@/types/cricket';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, MapPin } from 'lucide-react';
+import { CalendarIcon, MapPin, Radio, PlayCircle, CheckCircle2 } from 'lucide-react';
 
 interface MatchCardProps {
   match: Match;
@@ -25,19 +24,22 @@ const MatchCard = ({ match, teams }: MatchCardProps) => {
     switch (match.status) {
       case 'live':
         return (
-          <Badge className="bg-cricket-ball text-white">
+          <Badge className="bg-cricket-ball text-white flex items-center gap-1">
+            <Radio className="h-4 w-4 text-cricket-ball animate-pulse" />
             LIVE
           </Badge>
         );
       case 'upcoming':
         return (
-          <Badge className="bg-cricket-secondary text-white">
+          <Badge className="bg-cricket-secondary text-white flex items-center gap-1">
+            <PlayCircle className="h-4 w-4 text-cricket-secondary" />
             UPCOMING
           </Badge>
         );
       case 'completed':
         return (
-          <Badge variant="outline">
+          <Badge variant="outline" className="flex items-center gap-1">
+            <CheckCircle2 className="h-4 w-4 text-gray-400" />
             COMPLETED
           </Badge>
         );
@@ -60,7 +62,7 @@ const MatchCard = ({ match, teams }: MatchCardProps) => {
         {winnerTeam.name} won by{' '}
         {match.innings1 && match.innings2 && match.winnerId === match.team2Id
           ? `${10 - match.innings2.wickets} wickets`
-          : `${match.innings1?.runs! - match.innings2?.runs!} runs`
+          : `${(match.innings1?.runs ?? 0) - (match.innings2?.runs ?? 0)} runs`
         }
       </div>
     );

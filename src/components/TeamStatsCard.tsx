@@ -1,4 +1,3 @@
-
 import { Team, Player } from '@/types/cricket';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +6,8 @@ import {
   TrendingUp, 
   Users, 
   Activity,
-  Target
+  Target,
+  Trophy
 } from 'lucide-react';
 
 interface TeamStatsCardProps {
@@ -72,33 +72,23 @@ const TeamStatsCard = ({ team }: TeamStatsCardProps) => {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <TrendingUp className="h-4 w-4 text-amber-500" />
-                  <span className="text-xs font-medium">Top Batsman</span>
+                  <span className="text-sm font-medium">Top Batsman</span>
                 </div>
-                <p className="font-medium">{topBatsman.name}</p>
-                <p className="text-xs text-gray-500">
-                  {topBatsman.battingStats?.runs || 0} runs | SR: {
-                    topBatsman.battingStats?.ballsFaced ? 
-                    ((topBatsman.battingStats.runs / topBatsman.battingStats.ballsFaced) * 100).toFixed(2) : 
-                    '0.00'
-                  }
-                </p>
+                <div className="text-sm pl-6">
+                  {topBatsman.name} - {topBatsman.battingStats?.runs || 0} runs
+                </div>
               </div>
             )}
             
             {topBowler && (
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Award className="h-4 w-4 text-blue-500" />
-                  <span className="text-xs font-medium">Top Bowler</span>
+                  <Trophy className="h-4 w-4 text-emerald-500" />
+                  <span className="text-sm font-medium">Top Bowler</span>
                 </div>
-                <p className="font-medium">{topBowler.name}</p>
-                <p className="text-xs text-gray-500">
-                  {topBowler.bowlingStats?.wickets || 0} wickets | Econ: {
-                    topBowler.bowlingStats?.overs ? 
-                    (topBowler.bowlingStats.runs / topBowler.bowlingStats.overs).toFixed(2) : 
-                    '0.00'
-                  }
-                </p>
+                <div className="text-sm pl-6">
+                  {topBowler.name} - {topBowler.bowlingStats?.wickets || 0} wickets
+                </div>
               </div>
             )}
           </div>

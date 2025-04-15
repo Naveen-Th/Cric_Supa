@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Plus, Search, Trash2, UserPlus } from 'lucide-react';
+import { Edit, Plus, Search, Trash2, UserPlus, UsersRound } from 'lucide-react';
 import PlayerForm from '@/components/admin/PlayerForm';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/components/ui/use-toast';
@@ -174,8 +174,11 @@ const PlayerManagement = () => {
               
               {filteredPlayers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">
-                    No players found matching the search criteria.
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="flex flex-col items-center justify-center">
+                      <UsersRound className="h-12 w-12 text-gray-200 mb-4" />
+                      <p className="text-gray-500">No players found matching the search criteria.</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}

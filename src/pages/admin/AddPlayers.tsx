@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCricket } from '@/context/CricketContext';
@@ -10,8 +9,16 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { 
+  PlusCircle, 
+  Trash2, 
+  ChevronLeft,
+  Swords,
+  CircleDot,
+  Shield,
+  UserCircle2
+} from 'lucide-react';
 
 const AddPlayers = () => {
   const { teamId } = useParams();
@@ -33,6 +40,21 @@ const AddPlayers = () => {
       </MainLayout>
     );
   }
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'Batsman':
+        return <Swords className="h-4 w-4 text-blue-500" />;
+      case 'Bowler':
+        return <CircleDot className="h-4 w-4 text-green-500" />;
+      case 'All-Rounder':
+        return <Shield className="h-4 w-4 text-purple-500" />;
+      case 'Wicket Keeper':
+        return <UserCircle2 className="h-4 w-4 text-yellow-500" />;
+      default:
+        return null;
+    }
+  };
   
   const handleAddPlayer = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +121,7 @@ const AddPlayers = () => {
                   <Label htmlFor="player-role">Player Role</Label>
                   <Select 
                     value={playerRole} 
-                    onValueChange={(value) => setPlayerRole(value as any)}
+                    onValueChange={(value: 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket Keeper') => setPlayerRole(value)}
                   >
                     <SelectTrigger id="player-role">
                       <SelectValue placeholder="Select a role" />
@@ -151,13 +173,18 @@ const AddPlayers = () => {
                           <Badge
                             variant="outline"
                             className={
-                              player.role === 'Batsman' 
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : player.role === 'Bowler'
-                                ? 'bg-green-50 text-green-700 border-green-200'
-                                : 'bg-purple-50 text-purple-700 border-purple-200'
+                              `flex items-center gap-1.5 ${
+                                player.role === 'Batsman' 
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : player.role === 'Bowler'
+                                  ? 'bg-green-50 text-green-700 border-green-200'
+                                  : player.role === 'Wicket Keeper'
+                                  ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                  : 'bg-purple-50 text-purple-700 border-purple-200'
+                              }`
                             }
                           >
+                            {getRoleIcon(player.role)}
                             {player.role}
                           </Badge>
                         </TableCell>
