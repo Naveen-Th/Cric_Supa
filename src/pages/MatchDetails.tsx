@@ -1,154 +1,166 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useCricket } from '@/context/CricketContext';
 import MainLayout from '@/components/layout/MainLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, MapPin, Trophy, Users, ArrowLeft, Loader2 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { supabase } from '@/integrations/supabase/client';
 import { Match, Team, Player } from '@/types/cricket';
-import { toast } from '@/components/ui/use-toast';
+import { useCricket } from '@/context/CricketContext';
+import { ArrowLeft, CalendarIcon, MapPinIcon, Trophy, Users, Clock } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import LiveMatchWrapper from '@/components/LiveMatchWrapper';
 
 const MatchDetails = () => {
-  const { matchId } = useParams<{ matchId: string }>();
-  const { matches, teams, players } = useCricket();
+  const { id: matchId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { teams } = useCricket();
   
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [team1, setTeam1] = useState<Team | null>(null);
+  const [team2, setTeam2] = useState<Team | null>(null);
+  const [winner, setWinner] = useState<Team | null>(null);
+  const [mvp, setMvp] = useState<Player | null>(null);
   
-  // Get match from local state or fetch it
   useEffect(() => {
-    const fetchMatch = async () => {
-      setLoading(true);
+    const fetchMatchDetails = async () => {
+      if (!matchId) return;
       
       try {
-        // First try to get from local state
-        let matchData = matches.find(m => m.id === matchId);
+        setLoading(true);
         
-        if (!matchData) {
-          // If not found, try to fetch from Supabase
-          const { data, error } = await supabase
-            .from('matches')
-            .select(`
-              *,
-              team1:team1_id(name),
-              team2:team2_id(name),
-              winner:winner_id(name),
-              mvp:mvp_id(name),
-              innings(*)
-            `)
-            .eq('id', matchId)
-            .single();
+        // Use direct Supabase query to get match details
+        const { data, error } = await supabase
+          .from('matches')
+          .select(`
+            *,
+            team1:team1_id(name),
+            team2:team2_id(name),
+            winner:winner_id(name),
+            mvp:mvp_id(name)
+          `)
+          .eq('id', matchId)
+          .single();
           
-          if (error) throw error;
-          
-          if (data) {
-            // Transform Supabase data to match our Match type
-            const innings1 = data.innings?.find((i: any) => i.innings_number === 1);
-            const innings2 = data.innings?.find((i: any) => i.innings_number === 2);
-            
-            matchData = {
-              id: data.id,
-              team1Id: data.team1_id,
-              team2Id: data.team2_id,
-              date: data.date,
-              venue: data.venue,
-              status: data.status as 'upcoming' | 'live' | 'completed',
-              tossWinnerId: data.toss_winner_id,
-              tossChoice: data.toss_choice as 'bat' | 'bowl' | undefined,
-              currentInnings: data.current_innings as 1 | 2,
-              totalOvers: data.total_overs,
-              winnerId: data.winner_id,
-              mvpId: data.mvp_id,
-              innings1: innings1 ? {
-                teamId: innings1.team_id,
-                runs: innings1.runs,
-                wickets: innings1.wickets,
-                overs: innings1.overs,
-                battingOrder: [],
-                extras: innings1.extras,
-              } : undefined,
-              innings2: innings2 ? {
-                teamId: innings2.team_id,
-                runs: innings2.runs,
-                wickets: innings2.wickets,
-                overs: innings2.overs,
-                battingOrder: [],
-                extras: innings2.extras,
-              } : undefined,
-              // Add team and MVP information
-              team1: data.team1 ? { name: data.team1.name } : { name: 'Team 1' },
-              team2: data.team2 ? { name: data.team2.name } : { name: 'Team 2' },
-              winner: data.winner ? { name: data.winner.name } : undefined,
-              mvp: data.mvp ? { name: data.mvp.name } : undefined
-            };
-          }
+        if (error) {
+          console.error('Error fetching match:', error);
+          return;
         }
         
-        setMatch(matchData);
-      } catch (err) {
-        console.error('Error fetching match:', err);
-        setError('Failed to load match details');
-        toast({
-          title: 'Error',
-          description: 'Failed to load match details',
-          variant: 'destructive',
-        });
+        if (data) {
+          // Convert from database format to our Match type
+          const matchData: Match = {
+            id: data.id,
+            team1Id: data.team1_id,
+            team2Id: data.team2_id,
+            date: data.date,
+            venue: data.venue,
+            status: data.status,
+            tossWinnerId: data.toss_winner_id,
+            tossChoice: data.toss_choice,
+            currentInnings: data.current_innings,
+            totalOvers: data.total_overs,
+            winnerId: data.winner_id,
+            mvpId: data.mvp_id,
+            // Include the joined data
+            team1: data.team1 ? { name: data.team1?.name } : undefined,
+            team2: data.team2 ? { name: data.team2?.name } : undefined,
+            winner: data.winner ? { name: data.winner?.name } : undefined,
+            mvp: data.mvp ? { name: data.mvp?.name } : undefined,
+          };
+          
+          setMatch(matchData);
+          
+          // Also fetch innings data if it's a live or completed match
+          if (data.status === 'live' || data.status === 'completed') {
+            const { data: inningsData, error: inningsError } = await supabase
+              .from('innings')
+              .select('*')
+              .eq('match_id', matchId)
+              .order('innings_number');
+              
+            if (inningsError) {
+              console.error('Error fetching innings:', inningsError);
+            } else if (inningsData && inningsData.length > 0) {
+              // Map innings data to our Match type
+              const updatedMatchData = { ...matchData };
+              
+              inningsData.forEach(innings => {
+                if (innings.innings_number === 1) {
+                  updatedMatchData.innings1 = {
+                    teamId: innings.team_id,
+                    runs: innings.runs || 0,
+                    wickets: innings.wickets || 0,
+                    overs: innings.overs || 0,
+                    extras: innings.extras || 0,
+                    battingOrder: [],
+                    bowlerId: '',
+                  };
+                } else if (innings.innings_number === 2) {
+                  updatedMatchData.innings2 = {
+                    teamId: innings.team_id,
+                    runs: innings.runs || 0,
+                    wickets: innings.wickets || 0,
+                    overs: innings.overs || 0,
+                    extras: innings.extras || 0,
+                    battingOrder: [],
+                    bowlerId: '',
+                  };
+                }
+              });
+              
+              setMatch(updatedMatchData);
+            }
+          }
+          
+          // Get full team data
+          const team1Data = teams.find(t => t.id === data.team1_id) || null;
+          const team2Data = teams.find(t => t.id === data.team2_id) || null;
+          const winnerData = data.winner_id ? teams.find(t => t.id === data.winner_id) : null;
+          
+          setTeam1(team1Data);
+          setTeam2(team2Data);
+          setWinner(winnerData);
+          
+          // Get MVP data
+          if (data.mvp_id) {
+            const allPlayers = teams.flatMap(team => team.players || []);
+            const mvpData = allPlayers.find(p => p.id === data.mvp_id) || null;
+            setMvp(mvpData);
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchMatchDetails:', error);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchMatch();
-    
-    // Set up real-time subscription
-    const matchSubscription = supabase
-      .channel('match-details')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
-        () => fetchMatch()
-      )
-      .subscribe();
-      
-    const inningsSubscription = supabase
-      .channel('innings-details')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'innings', filter: `match_id=eq.${matchId}` },
-        () => fetchMatch()
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(matchSubscription);
-      supabase.removeChannel(inningsSubscription);
-    };
-  }, [matchId, matches]);
+    fetchMatchDetails();
+  }, [matchId, teams]);
   
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-cricket-secondary mb-4" />
-          <p className="text-gray-500">Loading match details...</p>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cricket-accent"></div>
         </div>
       </MainLayout>
     );
   }
   
-  if (error || !match) {
+  if (!match || !team1 || !team2) {
     return (
       <MainLayout>
-        <div className="text-center p-10">
-          <h2 className="text-xl font-semibold mb-2">Error</h2>
-          <p className="text-gray-500">{error || 'Match not found'}</p>
-          <Button
-            variant="outline"
+        <div className="text-center p-8">
+          <h2 className="text-xl font-semibold text-red-600">Match not found</h2>
+          <p className="text-gray-500 mt-2">The match you're looking for doesn't exist or has been removed.</p>
+          <Button 
+            variant="outline" 
             className="mt-4"
             onClick={() => navigate('/matches')}
           >
@@ -159,332 +171,254 @@ const MatchDetails = () => {
       </MainLayout>
     );
   }
-  
-  // Find teams from the local state for more details
-  const team1Data = teams.find(t => t.id === match.team1Id);
-  const team2Data = teams.find(t => t.id === match.team2Id);
-  
-  // Create properly structured team objects, ensuring they have a players array
-  const team1: Team = team1Data || { 
-    id: match.team1Id, 
-    name: match.team1?.name || 'Team 1',
-    status: 'active',
-    players: []
-  };
-  
-  const team2: Team = team2Data || { 
-    id: match.team2Id, 
-    name: match.team2?.name || 'Team 2',
-    status: 'active',
-    players: []
-  };
-  
-  // Get MVP if exists
-  const mvpPlayer = players.find(p => p.id === match.mvpId);
-  const mvp = mvpPlayer || (match.mvp ? { name: match.mvp.name } : null);
-  
-  // Get status badge
-  const getStatusBadge = () => {
-    switch (match.status) {
-      case 'live':
-        return (
-          <Badge className="bg-cricket-ball text-white">
-            LIVE
-          </Badge>
-        );
-      case 'upcoming':
-        return (
-          <Badge className="bg-cricket-secondary text-white">
-            UPCOMING
-          </Badge>
-        );
-      case 'completed':
-        return (
-          <Badge variant="outline">
-            COMPLETED
-          </Badge>
-        );
-    }
-  };
-  
-  // Helper function to ensure players array exists
-  const getPlayersCount = (team: Team) => {
-    return team.players?.length || 0;
-  };
-  
+
   return (
     <MainLayout>
-      <div className="mb-6 flex items-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/matches')}
-          className="mr-4"
+      <div className="mb-4 flex items-center justify-between">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate(-1)}
+          className="flex items-center"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <h1 className="text-2xl font-bold">{team1.name} vs {team2.name}</h1>
-        <div className="ml-4">{getStatusBadge()}</div>
+        
+        <Badge 
+          variant={match.status === 'live' ? 'default' : match.status === 'completed' ? 'success' : 'outline'}
+          className={cn(
+            match.status === 'live' && "animate-pulse bg-red-500",
+            match.status === 'completed' && "bg-green-500"
+          )}
+        >
+          {match.status.toUpperCase()}
+        </Badge>
       </div>
       
-      {/* Match Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <CalendarIcon className="h-5 w-5 text-cricket-secondary mr-2" />
-              <span className="font-medium">Date</span>
+      <Card className="mb-6 overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-cricket-primary/10 to-cricket-secondary/10">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div>
+              <CardTitle className="text-2xl">
+                {team1.name} vs {team2.name}
+              </CardTitle>
+              <CardDescription className="flex items-center mt-2">
+                <CalendarIcon className="h-4 w-4 mr-1" />
+                {format(new Date(match.date), 'PPP')}
+                <span className="mx-2">•</span>
+                <MapPinIcon className="h-4 w-4 mr-1" />
+                {match.venue}
+                {match.totalOvers && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <Clock className="h-4 w-4 mr-1" />
+                    {match.totalOvers} overs
+                  </>
+                )}
+              </CardDescription>
             </div>
-            <p>{new Date(match.date).toLocaleDateString()}</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <MapPin className="h-5 w-5 text-cricket-secondary mr-2" />
-              <span className="font-medium">Venue</span>
-            </div>
-            <p>{match.venue}</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <Trophy className="h-5 w-5 text-cricket-secondary mr-2" />
-              <span className="font-medium">Format</span>
-            </div>
-            <p>{match.totalOvers} overs match</p>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Completed Match Result */}
-      {match.status === 'completed' && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Match Result</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="col-span-2">
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="text-center">
-                    <h3 className="font-semibold text-lg">{team1.name}</h3>
-                    <p className="text-2xl font-bold mt-2">
-                      {match.innings1?.runs || 0}/{match.innings1?.wickets || 0}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      ({match.innings1?.overs || 0} overs)
-                    </p>
-                  </div>
-                  
-                  <div className="flex justify-center items-center">
-                    <div className="text-center">
-                      <span className="text-sm text-gray-500">vs</span>
-                    </div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <h3 className="font-semibold text-lg">{team2.name}</h3>
-                    <p className="text-2xl font-bold mt-2">
-                      {match.innings2?.runs || 0}/{match.innings2?.wickets || 0}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      ({match.innings2?.overs || 0} overs)
-                    </p>
-                  </div>
-                </div>
-                
-                <Separator className="my-4" />
-                
-                <div className="text-center py-2">
-                  {match.winnerId && (
-                    <div>
-                      <p className="font-medium text-lg">
-                        {match.winnerId === match.team1Id ? team1.name : team2.name} won by{' '}
-                        {match.winnerId === match.team2Id && match.innings2
-                          ? `${10 - match.innings2.wickets} wickets`
-                          : `${(match.innings1?.runs || 0) - (match.innings2?.runs || 0)} runs`
-                        }
-                      </p>
-                    </div>
+            
+            {match.status === 'completed' && winner && (
+              <div className="flex items-center bg-green-50 p-3 rounded-lg border border-green-100">
+                <Trophy className="h-5 w-5 text-yellow-500 mr-2" />
+                <div>
+                  <div className="font-semibold text-green-800">{winner.name} won</div>
+                  {mvp && (
+                    <div className="text-xs text-green-600">MVP: {mvp.name}</div>
                   )}
                 </div>
               </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4 flex items-center">
-                  <Trophy className="h-5 w-5 text-amber-500 mr-2" />
-                  Player of the Match
-                </h3>
+            )}
+          </div>
+        </CardHeader>
+        
+        <CardContent className="p-0">
+          {match.status === 'upcoming' && (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Match Details</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="text-muted-foreground">Date:</div>
+                    <div>{format(new Date(match.date), 'PPP')}</div>
+                    
+                    <div className="text-muted-foreground">Venue:</div>
+                    <div>{match.venue}</div>
+                    
+                    <div className="text-muted-foreground">Format:</div>
+                    <div>{match.totalOvers} overs</div>
+                    
+                    {match.tossWinnerId && (
+                      <>
+                        <div className="text-muted-foreground">Toss:</div>
+                        <div>
+                          {match.tossWinnerId === team1.id ? team1.name : team2.name} won and chose to {match.tossChoice}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
                 
-                {mvp ? (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="font-medium text-lg">{mvp.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {teams.find(t => t.players?.some(p => p.id === match.mvpId))?.name || ''}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-gray-500">Not awarded</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
-      {/* Upcoming Match Info */}
-      {match.status === 'upcoming' && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Match Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold mb-4">Toss</h3>
-                {match.tossWinnerId ? (
-                  <p>
-                    {match.tossWinnerId === match.team1Id ? team1.name : team2.name} won the toss and elected to {match.tossChoice}
-                  </p>
-                ) : (
-                  <p className="text-gray-500">Toss yet to happen</p>
-                )}
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Teams</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="font-medium">{team1.name}</p>
-                    <p className="text-sm text-gray-500">{getPlayersCount(team1)} players</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">{team2.name}</p>
-                    <p className="text-sm text-gray-500">{getPlayersCount(team2)} players</p>
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Teams</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border rounded-lg p-3">
+                      <div className="font-medium mb-2">{team1.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {team1.players?.length || 0} players
+                      </div>
+                    </div>
+                    <div className="border rounded-lg p-3">
+                      <div className="font-medium mb-2">{team2.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {team2.players?.length || 0} players
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+          
+          {match.status === 'live' && (
+            <div className="p-6">
+              <LiveMatchWrapper match={match} teams={teams} />
+            </div>
+          )}
+          
+          {match.status === 'completed' && (
+            <div className="p-6">
+              <Tabs defaultValue="summary">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="summary">Match Summary</TabsTrigger>
+                  <TabsTrigger value="scorecard">Scorecard</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="summary">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {match.innings1 && (
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">
+                              {teams.find(t => t.id === match.innings1?.teamId)?.name} - 1st Innings
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold">
+                              {match.innings1.runs}/{match.innings1.wickets}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {match.innings1.overs} overs
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      {match.innings2 && (
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">
+                              {teams.find(t => t.id === match.innings2?.teamId)?.name} - 2nd Innings
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold">
+                              {match.innings2.runs}/{match.innings2.wickets}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {match.innings2.overs} overs
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                    
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                      <h3 className="font-semibold text-green-800 mb-2">Result</h3>
+                      <p>
+                        {winner?.name} won by {
+                          match.winnerId === team2.id && match.innings2
+                            ? `${10 - match.innings2.wickets} wickets`
+                            : match.innings1 && match.innings2
+                              ? `${match.innings1.runs - match.innings2.runs} runs`
+                              : 'default'
+                        }
+                      </p>
+                      {mvp && (
+                        <div className="mt-2 text-sm">
+                          <span className="text-muted-foreground">Player of the Match:</span> {mvp.name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="scorecard">
+                  <div className="space-y-6">
+                    <div className="text-sm text-muted-foreground italic">
+                      Detailed scorecard will be available soon.
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       
-      {/* Live Match CTA */}
-      {match.status === 'live' && (
-        <div className="text-center p-6 bg-cricket-pitch/10 rounded-lg mb-8">
-          <p className="text-lg font-medium mb-2">This match is currently live!</p>
-          <Button onClick={() => navigate('/')}>
-            Watch Live
-          </Button>
-        </div>
-      )}
-      
-      {/* Teams and Match Details Tabs */}
-      <Tabs defaultValue="teams">
-        <TabsList className="w-full mb-6">
-          <TabsTrigger value="teams" className="flex-1">
-            <Users className="h-4 w-4 mr-2" />
-            Teams
-          </TabsTrigger>
-          <TabsTrigger value="details" className="flex-1">
-            <Trophy className="h-4 w-4 mr-2" />
-            Match Details
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="teams">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{team1.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {team1.players && team1.players.length > 0 ? (
-                  <ul className="space-y-2">
-                    {team1.players.map((player) => (
-                      <li key={player.id} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                        <span>{player.name}</span>
-                        <Badge variant="outline">{player.role}</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">Player information not available</p>
-                )}
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>{team2.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {team2.players && team2.players.length > 0 ? (
-                  <ul className="space-y-2">
-                    {team2.players.map((player) => (
-                      <li key={player.id} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                        <span>{player.name}</span>
-                        <Badge variant="outline">{player.role}</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">Player information not available</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="details">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-4">Team Lineups</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Match Summary</CardTitle>
+              <CardTitle className="flex items-center">
+                <Users className="h-5 w-5 mr-2 text-cricket-primary" />
+                {team1.name}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-semibold mb-2">Match Conditions</h3>
-                    <p className="text-gray-600">Format: {match.totalOvers} overs per side</p>
-                    <p className="text-gray-600">Venue: {match.venue}</p>
-                    <p className="text-gray-600">Date: {new Date(match.date).toLocaleDateString()}</p>
+              <div className="space-y-2">
+                {team1.players?.map(player => (
+                  <div key={player.id} className="flex justify-between items-center p-2 hover:bg-muted rounded-md">
+                    <div>{player.name}</div>
+                    <Badge variant="outline">{player.role}</Badge>
                   </div>
-                  
-                  <div>
-                    <h3 className="font-semibold mb-2">Match Status</h3>
-                    <p className="text-gray-600">Current Status: {match.status}</p>
-                    {match.status === 'live' && (
-                      <p className="text-gray-600">
-                        Current Innings: {match.currentInnings === 1 ? 'First' : 'Second'}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                {match.status === 'completed' && match.winnerId && (
-                  <div>
-                    <h3 className="font-semibold mb-2">Result</h3>
-                    <p className="text-gray-600">
-                      Winner: {match.winnerId === match.team1Id ? team1.name : team2.name}
-                    </p>
-                    {mvp && (
-                      <p className="text-gray-600">
-                        Player of the Match: {mvp.name}
-                      </p>
-                    )}
+                ))}
+                {(!team1.players || team1.players.length === 0) && (
+                  <div className="text-center text-muted-foreground p-4">
+                    No players available
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Users className="h-5 w-5 mr-2 text-cricket-secondary" />
+                {team2.name}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {team2.players?.map(player => (
+                  <div key={player.id} className="flex justify-between items-center p-2 hover:bg-muted rounded-md">
+                    <div>{player.name}</div>
+                    <Badge variant="outline">{player.role}</Badge>
+                  </div>
+                ))}
+                {(!team2.players || team2.players.length === 0) && (
+                  <div className="text-center text-muted-foreground p-4">
+                    No players available
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </MainLayout>
   );
 };

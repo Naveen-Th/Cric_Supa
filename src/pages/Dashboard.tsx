@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import StatisticsTable from '@/components/StatisticsTable';
 
 const Dashboard = () => {
-  const { liveMatch, activeTeams, matches, teams, players } = useCricket();
+  const { liveMatch, activeTeams, matches, teams, players, loading } = useCricket();
   const navigate = useNavigate();
   
   // Get upcoming matches (not live, not completed)
@@ -32,6 +32,16 @@ const Dashboard = () => {
     .filter(p => p.bowlingStats && p.bowlingStats.wickets > 0)
     .sort((a, b) => (b.bowlingStats?.wickets || 0) - (a.bowlingStats?.wickets || 0))
     .slice(0, 5);
+  
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cricket-accent"></div>
+        </div>
+      </MainLayout>
+    );
+  }
   
   return (
     <MainLayout>

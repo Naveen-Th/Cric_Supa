@@ -8,7 +8,7 @@ import { toast } from '@/components/ui/use-toast';
 
 export const useMatches = () => {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Add loading state
   
   // Derived states
   const liveMatch = matches.find(match => match.status === 'live') || null;
@@ -296,7 +296,7 @@ export const useMatches = () => {
 
   return {
     matches,
-    loading,
+    loading, // Export loading state
     liveMatch,
     completedMatches,
     createMatch: handleCreateMatch,

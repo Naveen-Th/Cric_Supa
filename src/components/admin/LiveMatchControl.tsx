@@ -55,7 +55,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   const [customRuns, setCustomRuns] = useState<number>(0);
   const [customOvers, setCustomOvers] = useState<number>(0);
   const [isWicket, setIsWicket] = useState<boolean>(false);
-  const [dismissedPlayers, setDismissedPlayers] = useState<string[]>([]); // Track dismissed players
+  const [dismissedPlayers, setDismissedPlayers] = useState<string[]>([]); 
   
   // States for match ending
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
@@ -78,21 +78,112 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   const battingTeam = teams.find(t => t.id === battingTeamId);
   const bowlingTeam = teams.find(t => t.id === bowlingTeamId);
 
-  // Load initial state from localStorage
-  useEffect(() => {
-    const savedState = loadFromLocalStorage(match.id);
-    if (savedState) {
-      setStriker(savedState.striker);
-      setNonStriker(savedState.nonStriker);
-      setSelectedBowler(savedState.selectedBowler);
-      setCustomOvers(savedState.currentOvers);
-      setCustomRuns(savedState.currentRuns);
-      setDismissedPlayers(savedState.dismissedPlayers);
+  // Update the batting partnership in Supabase
+  const updateBattingPartnership = async (strikerId: string | null, nonStrikerId: string | null) => {
+    try {
+      if (!match.id) return;
+      
+      if (strikerId || nonStrikerId) {
+        // Check if a partnership already exists for this innings
+        const { data: existingPartnership, error: queryError } = await supabase
+          .from('batting_partnerships')
+          .select('*')
+          .eq('match_id', match.id)
+          .eq('innings_number', match.currentInnings)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (queryError) {
+          console.error('Error checking batting partnership:', queryError);
+          return;
+        }
+        
+        if (existingPartnership && existingPartnership.length > 0) {
+          // Update existing partnership
+          const { error: updateError } = await supabase
+            .from('batting_partnerships')
+            .update({
+              striker_id: strikerId,
+              non_striker_id: nonStrikerId,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingPartnership[0].id);
+            
+          if (updateError) {
+            console.error('Error updating batting partnership:', updateError);
+          }
+        } else {
+          // Create new partnership
+          const { error: insertError } = await supabase
+            .from('batting_partnerships')
+            .insert({
+              match_id: match.id,
+              innings_number: match.currentInnings,
+              striker_id: strikerId,
+              non_striker_id: nonStrikerId
+            });
+            
+          if (insertError) {
+            console.error('Error creating batting partnership:', insertError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error managing batting partnership:', error);
     }
-  }, [match.id]);
+  };
 
-  // Save state to localStorage whenever it changes
+  // Load initial state from localStorage and the database
   useEffect(() => {
+    const loadInitialState = async () => {
+      // Try to load from database first
+      try {
+        const { data, error } = await supabase
+          .from('batting_partnerships')
+          .select('*')
+          .eq('match_id', match.id)
+          .eq('innings_number', match.currentInnings)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        if (!error && data) {
+          setStriker(data.striker_id);
+          setNonStriker(data.non_striker_id);
+        } else {
+          // Fallback to localStorage
+          const savedState = loadFromLocalStorage(match.id);
+          if (savedState) {
+            setStriker(savedState.striker);
+            setNonStriker(savedState.nonStriker);
+            setSelectedBowler(savedState.selectedBowler);
+            setCustomOvers(savedState.currentOvers);
+            setCustomRuns(savedState.currentRuns);
+            setDismissedPlayers(savedState.dismissedPlayers);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading match state:', error);
+        // Fallback to localStorage
+        const savedState = loadFromLocalStorage(match.id);
+        if (savedState) {
+          setStriker(savedState.striker);
+          setNonStriker(savedState.nonStriker);
+          setSelectedBowler(savedState.selectedBowler);
+          setCustomOvers(savedState.currentOvers);
+          setCustomRuns(savedState.currentRuns);
+          setDismissedPlayers(savedState.dismissedPlayers);
+        }
+      }
+    };
+    
+    loadInitialState();
+  }, [match.id, match.currentInnings]);
+
+  // Save state to localStorage and update database whenever it changes
+  useEffect(() => {
+    // Update local storage
     saveToLocalStorage(match.id, {
       striker,
       nonStriker,
@@ -101,6 +192,11 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       currentRuns: currentInningsData?.runs || 0,
       dismissedPlayers,
     });
+    
+    // Update database
+    if (striker !== null || nonStriker !== null) {
+      updateBattingPartnership(striker, nonStriker);
+    }
   }, [
     match.id,
     striker,
@@ -111,13 +207,19 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     dismissedPlayers
   ]);
 
-  if (!team1 || !team2 || !battingTeam || !bowlingTeam) {
-    return (
-      <div className="p-4 text-center">
-        <p className="text-red-600">Unable to load match data</p>
-      </div>
-    );
-  }
+  // Handle striker or non-striker change
+  const handleBatsmanChange = (playerId: string, role: 'striker' | 'nonStriker') => {
+    if (role === 'striker') {
+      setStriker(playerId);
+    } else {
+      setNonStriker(playerId);
+    }
+    
+    // Call updateBattingPartnership to save the change to the database
+    const updatedStriker = role === 'striker' ? playerId : striker;
+    const updatedNonStriker = role === 'nonStriker' ? playerId : nonStriker;
+    updateBattingPartnership(updatedStriker, updatedNonStriker);
+  };
 
   // Update player stats in Supabase
   const updatePlayerStats = async (playerId: string, runs: number, isWicket: boolean = false) => {
@@ -286,6 +388,9 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
         const temp = striker;
         setStriker(nonStriker);
         setNonStriker(temp);
+        
+        // Update database with swapped batsmen
+        updateBattingPartnership(nonStriker, temp);
       }
     }
     
@@ -375,6 +480,9 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     
     // Reset striker but keep non-striker
     setStriker(null);
+    
+    // Update database - striker is now null
+    updateBattingPartnership(null, nonStriker);
   };
 
   // Handle over update - correcting the ball and over logic
@@ -445,6 +553,16 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       title: "Innings switched",
       description: `Now ${bowlingTeam?.name} is batting`,
     });
+    
+    // Remove old partnerships from database - new ones will be created when batsmen are selected
+    supabase
+      .from('batting_partnerships')
+      .delete()
+      .eq('match_id', match.id)
+      .eq('innings_number', 1)
+      .then(({ error }) => {
+        if (error) console.error('Error cleaning up partnerships:', error);
+      });
   };
 
   // Modify the handleEndMatch function
@@ -485,7 +603,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
           <CardContent className="space-y-6 pt-4">
             <div>
               <label className="block text-sm font-medium mb-1">Select Striker</label>
-              <Select onValueChange={setStriker} value={striker || undefined}>
+              <Select onValueChange={(value) => handleBatsmanChange(value, 'striker')} value={striker || undefined}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select striker" />
                 </SelectTrigger>
@@ -499,7 +617,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
                           ? 'bg-red-50 text-red-700 line-through opacity-50' 
                           : ''}
                       `}
-                      disabled={dismissedPlayers.includes(player.id)}
+                      disabled={dismissedPlayers.includes(player.id) || player.id === nonStriker}
                     >
                       {player.name}
                       {dismissedPlayers.includes(player.id) && ' (Out)'}
@@ -511,7 +629,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
             
             <div>
               <label className="block text-sm font-medium mb-1">Select Non-Striker</label>
-              <Select onValueChange={setNonStriker} value={nonStriker || undefined}>
+              <Select onValueChange={(value) => handleBatsmanChange(value, 'nonStriker')} value={nonStriker || undefined}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select non-striker" />
                 </SelectTrigger>
