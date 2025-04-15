@@ -33,15 +33,14 @@ const MatchDetails = () => {
       try {
         setLoading(true);
         
-        // Use direct Supabase query to get match details
         const { data, error } = await supabase
           .from('matches')
           .select(`
             *,
-            team1:team1_id(name),
-            team2:team2_id(name),
-            winner:winner_id(name),
-            mvp:mvp_id(name)
+            team1:team1_id(id, name),
+            team2:team2_id(id, name),
+            winner:winner_id(id, name),
+            mvp:mvp_id(id, name)
           `)
           .eq('id', matchId)
           .single();
@@ -52,7 +51,6 @@ const MatchDetails = () => {
         }
         
         if (data) {
-          // Convert from database format to our Match type
           const matchData: Match = {
             id: data.id,
             team1Id: data.team1_id,
@@ -66,16 +64,14 @@ const MatchDetails = () => {
             totalOvers: data.total_overs,
             winnerId: data.winner_id,
             mvpId: data.mvp_id,
-            // Include the joined data with proper type handling
-            team1: data.team1 ? { name: data.team1.name } : undefined,
-            team2: data.team2 ? { name: data.team2.name } : undefined,
-            winner: data.winner ? { name: data.winner.name } : undefined,
-            mvp: data.mvp ? { name: data.mvp.name } : undefined,
+            team1: data.team1 ? { name: data.team1.name as string } : undefined,
+            team2: data.team2 ? { name: data.team2.name as string } : undefined,
+            winner: data.winner ? { name: data.winner.name as string } : undefined,
+            mvp: data.mvp ? { name: data.mvp.name as string } : undefined,
           };
           
           setMatch(matchData);
           
-          // Also fetch innings data if it's a live or completed match
           if (data.status === 'live' || data.status === 'completed') {
             const { data: inningsData, error: inningsError } = await supabase
               .from('innings')
@@ -86,7 +82,6 @@ const MatchDetails = () => {
             if (inningsError) {
               console.error('Error fetching innings:', inningsError);
             } else if (inningsData && inningsData.length > 0) {
-              // Map innings data to our Match type
               const updatedMatchData = { ...matchData };
               
               inningsData.forEach(innings => {
@@ -117,7 +112,6 @@ const MatchDetails = () => {
             }
           }
           
-          // Get full team data
           const team1Data = teams.find(t => t.id === data.team1_id) || null;
           const team2Data = teams.find(t => t.id === data.team2_id) || null;
           const winnerData = data.winner_id ? teams.find(t => t.id === data.winner_id) : null;
@@ -126,7 +120,6 @@ const MatchDetails = () => {
           setTeam2(team2Data);
           setWinner(winnerData);
           
-          // Get MVP data
           if (data.mvp_id) {
             const allPlayers = teams.flatMap(team => team.players || []);
             const mvpData = allPlayers.find(p => p.id === data.mvp_id) || null;
