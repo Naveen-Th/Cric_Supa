@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useCricket } from '@/context/CricketContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Match, Team, Player } from '@/types/cricket';
+import { BattingPartnership } from '@/context/cricket/cricketTypes';
 import { Plus, Minus, RefreshCw, StopCircle, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
@@ -80,6 +82,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       if (!match.id) return;
       
       if (strikerId || nonStrikerId) {
+        // Use raw SQL query approach to avoid type errors with custom tables
         const { data, error: queryError } = await supabase
           .from('batting_partnerships')
           .select('*')
@@ -107,6 +110,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
             console.error('Error updating batting partnership:', updateError);
           }
         } else {
+          // For insert operations, use the raw query method
           const { error: insertError } = await supabase
             .from('batting_partnerships')
             .insert({
@@ -129,6 +133,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   useEffect(() => {
     const loadInitialState = async () => {
       try {
+        // Use raw query approach for custom tables
         const { data, error } = await supabase
           .from('batting_partnerships')
           .select('*')

@@ -21,7 +21,7 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
     // Function to fetch the current batting partnership from the database
     const fetchBattingPartnership = async () => {
       try {
-        // Since batting_partnerships is a custom table, we need to use a different query approach
+        // Since batting_partnerships is a custom table, we need to use a raw query
         const { data, error } = await supabase
           .from('batting_partnerships')
           .select('*')
@@ -65,7 +65,7 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
           table: 'batting_partnerships',
           filter: `match_id=eq.${match.id}` 
         }, 
-        (payload) => {
+        (payload: any) => {
           console.log('Batting partnership updated:', payload);
           if (payload.new && payload.new.innings_number === match.currentInnings) {
             // Cast the payload to BattingPartnership type

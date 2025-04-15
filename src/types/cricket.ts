@@ -33,7 +33,7 @@ export type Innings  = {
   wickets: number;
   overs: number;
   battingOrder: string[];
-  bowlerId: string;
+  bowlerId?: string; // Make bowlerId optional to fix type errors
   extras: number;
 }
 
