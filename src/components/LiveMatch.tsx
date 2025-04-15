@@ -1,11 +1,12 @@
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Match, Team } from '@/types/cricket';
 import { useCricket } from '@/context/CricketContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Trophy } from 'lucide-react';
 
 interface LiveMatchProps {
   match: Match;
@@ -44,6 +45,43 @@ const LiveMatch = ({ match, teams, isAdmin = false }: LiveMatchProps) => {
     return (remainingRuns / remainingOvers).toFixed(2);
   })();
 
+  // Add winner determination logic
+  const determineWinner = () => {
+    if (!match.innings1) return null;
+    
+    // First innings complete and second innings hasn't started
+    if (match.currentInnings === 1 && 
+        (match.innings1.wickets === 10 || match.innings1.overs >= match.totalOvers)) {
+      return null; // No winner yet, innings break
+    }
+    
+    // Second innings scenarios
+    if (match.currentInnings === 2 && match.innings2) {
+      // Team 2 surpassed target
+      if (match.innings2.runs > match.innings1.runs) {
+        return {
+          team: team2,
+          margin: `${10 - match.innings2.wickets} wickets`
+        };
+      }
+      
+      // All overs complete or all wickets fallen
+      if (match.innings2.overs >= match.totalOvers || match.innings2.wickets === 10) {
+        if (match.innings2.runs < match.innings1.runs) {
+          return {
+            team: team1,
+            margin: `${match.innings1.runs - match.innings2.runs} runs`
+          };
+        } else if (match.innings2.runs === match.innings1.runs) {
+          return { team: null, margin: 'Match Tied' };
+        }
+      }
+    }
+    return null;
+  };
+
+  const winner = determineWinner();
+
   // Admin controls for updating the match
   const handleAddRuns = (runs: number) => {
     if (!match.id) return;
@@ -62,19 +100,18 @@ const LiveMatch = ({ match, teams, isAdmin = false }: LiveMatchProps) => {
     updateOvers(match.id, overs);
   };
 
-  const handleSwitchInnings = () => {
+  const handleSwitchInnings = useCallback(() => {
     if (!match.id) return;
     switchInnings(match.id);
-  };
+  }, [match.id, switchInnings]);
 
-  const handleEndMatch = (winnerId: string) => {
+  const handleEndMatch = useCallback((winnerId: string) => {
     if (!match.id) return;
-    // For now, we'll just use a placeholder MVP
     const mvpId = match.team1Id === winnerId 
       ? match.innings1?.battingOrder[0] || ''
       : match.innings2?.battingOrder[0] || '';
     endMatch(match.id, winnerId, mvpId);
-  };
+  }, [match, endMatch]);
 
   // Check if innings should switch automatically
   useEffect(() => {
@@ -114,121 +151,167 @@ const LiveMatch = ({ match, teams, isAdmin = false }: LiveMatchProps) => {
     ) {
       handleEndMatch(match.team2Id);
     }
-  }, [match]);
+  }, [handleEndMatch, handleSwitchInnings, isAdmin, match]);
 
   if (!team1 || !team2 || !battingTeam || !bowlingTeam || !currentInnings) {
-    return <div>Loading match data...</div>;
+    return (
+      <Card className="animate-in fade-in-50">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-center space-x-2">
+            <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-cricket-accent" />
+            <span className="text-sm text-muted-foreground">Loading match data...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Card className="overflow-hidden shadow-lg border-2 border-cricket-pitch">
-      <CardHeader className="cricket-field-bg text-white p-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <Badge variant="outline" className="bg-white/20 text-white">
-              {match.status.toUpperCase()}
-            </Badge>
-            <CardTitle className="mt-2 text-lg">{team1.name} vs {team2.name}</CardTitle>
+    <Card className="overflow-hidden shadow-lg border-2 border-cricket-pitch/20 bg-gradient-to-br from-background to-muted/20">
+      <CardHeader className="relative p-6 cricket-field-bg before:absolute before:inset-0 before:bg-black/20 before:z-0">
+        <div className="relative z-10 flex justify-between items-center gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={cn(
+                "bg-white/10 text-white border-white/20",
+                match.status === 'completed' && "bg-green-500/20 border-green-500/30"
+              )}>
+                {match.status === 'live' ? 'LIVE' : match.status.toUpperCase()}
+              </Badge>
+              {match.venue && (
+                <Badge variant="outline" className="bg-white/10 text-white border-white/20">
+                  {match.venue}
+                </Badge>
+              )}
+            </div>
+            <CardTitle className="text-2xl text-white font-bold">
+              {team1.name} vs {team2.name}
+            </CardTitle>
           </div>
-          <Badge variant="outline" className="bg-white/20 text-white">
-            {match.venue}
-          </Badge>
+          {match.status === 'completed' && match.winnerId && match.innings1 && match.innings2 && (
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-yellow-400" />
+                <div className="text-white">
+                  <div className="font-bold">
+                    {match.winnerId === team1.id ? team1.name : team2.name}
+                  </div>
+                  <div className="text-sm opacity-90">
+                    Won by {match.winnerId === team2.id
+                      ? `${10 - match.innings2.wickets} wickets`
+                      : `${match.innings1.runs - match.innings2.runs} runs`
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </CardHeader>
       
-      <CardContent className="p-6">
-        <div className="bg-gray-100 rounded-lg p-4 mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <div className="font-semibold">{battingTeam.name}</div>
-            <div className="text-lg font-bold">
-              <span className={`${lastUpdateTime && Date.now() - lastUpdateTime < 1000 ? 'animate-score-update' : ''}`}>
-                {currentInnings.runs}/{currentInnings.wickets}
-              </span>
-            </div>
-          </div>
-          
-          <div className="text-sm text-gray-600 flex justify-between">
-            <div>Overs: {currentInnings.overs.toFixed(1)}/{match.totalOvers}</div>
-            <div>Run Rate: {currentInnings.overs > 0 
-              ? (currentInnings.runs / Math.floor(currentInnings.overs)).toFixed(2) 
-              : '0.00'}</div>
-          </div>
-          
-          <Progress 
-            value={(currentInnings.overs / match.totalOvers) * 100} 
-            className="mt-2 h-2" 
-          />
-        </div>
-        
-        {match.currentInnings === 2 && target && (
-          <div className="mb-4 p-3 bg-cricket-accent/10 rounded-lg">
-            <div className="flex justify-between items-center">
-              <div className="font-medium text-cricket-accent">Target: {target}</div>
-              {requiredRunRate && (
-                <div className="text-sm">Required RR: {requiredRunRate}</div>
-              )}
-            </div>
-            <div className="mt-2 text-sm">
-              Need {target - (currentInnings.runs || 0)} runs from {((match.totalOvers - currentInnings.overs) * 6).toFixed(0)} balls
-            </div>
-          </div>
-        )}
-        
-        {isAdmin && (
-          <div className="mt-4 border-t pt-4">
-            <h3 className="font-semibold mb-2">Match Controls</h3>
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Button size="sm" variant="outline" onClick={() => handleAddRuns(0)}>Dot</Button>
-              <Button size="sm" variant="outline" onClick={() => handleAddRuns(1)}>1 Run</Button>
-              <Button size="sm" variant="outline" onClick={() => handleAddRuns(2)}>2 Runs</Button>
-              <Button size="sm" variant="outline" onClick={() => handleAddRuns(3)}>3 Runs</Button>
-              <Button size="sm" variant="outline" onClick={() => handleAddRuns(4)}>4 Runs</Button>
-              <Button size="sm" variant="outline" onClick={() => handleAddRuns(6)}>6 Runs</Button>
-              <Button size="sm" variant="destructive" onClick={handleAddWicket}>Wicket</Button>
-            </div>
-            
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Button 
-                size="sm" 
-                variant="secondary"
-                onClick={() => handleUpdateOvers(parseFloat((currentInnings.overs + 0.1).toFixed(1)))}
-              >
-                +0.1 Over
-              </Button>
-              <Button 
-                size="sm" 
-                variant="secondary"
-                onClick={() => handleUpdateOvers(parseFloat((currentInnings.overs + 1).toFixed(1)))}
-              >
-                +1 Over
-              </Button>
-            </div>
-            
-            {match.currentInnings === 1 && (
-              <Button 
-                className="w-full"
-                onClick={handleSwitchInnings}
-              >
-                End Innings 1
-              </Button>
-            )}
-            
-            {match.currentInnings === 2 && (
-              <div className="flex gap-2">
-                <Button 
-                  className="flex-1"
-                  onClick={() => handleEndMatch(match.team1Id)}
-                >
-                  {team1.name} Wins
-                </Button>
-                <Button 
-                  className="flex-1"
-                  onClick={() => handleEndMatch(match.team2Id)}
-                >
-                  {team2.name} Wins
-                </Button>
+      <CardContent className="p-6 space-y-6">
+        {/* Current Innings Score Section */}
+        <div className="bg-gradient-to-br from-card to-muted/50 rounded-xl p-6 shadow-inner">
+          <div className="space-y-4">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold">{battingTeam.name}</span>
+                  <Badge variant="secondary" className="animate-in slide-in-from-right">Batting</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {bowlingTeam.name} bowling
+                </p>
               </div>
-            )}
+              <div className="text-4xl font-bold tabular-nums tracking-tight">
+                <span className={cn(
+                  "transition-all duration-300",
+                  lastUpdateTime && Date.now() - lastUpdateTime < 1000 && "animate-score-update text-cricket-accent"
+                )}>
+                  {currentInnings.runs}/{currentInnings.wickets}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Overs: {currentInnings.overs.toFixed(1)}/{match.totalOvers}</span>
+                <span>RR: {currentInnings.overs > 0 
+                  ? (currentInnings.runs / currentInnings.overs).toFixed(2) 
+                  : '0.00'}</span>
+              </div>
+              
+              <Progress 
+                value={(currentInnings.overs / match.totalOvers) * 100} 
+                className="h-2 bg-muted"
+              />
+
+              {/* Add batting and bowling info */}
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{currentInnings.battingOrder[0] ? 
+                        battingTeam.players.find(p => p.id === currentInnings.battingOrder[0])?.name 
+                        : "Striker"}</span>
+                      <span className="text-muted-foreground">
+                        {currentInnings.battingOrder[0] ? 
+                          `${battingTeam.players.find(p => p.id === currentInnings.battingOrder[0])?.battingStats?.runs || 0}(${battingTeam.players.find(p => p.id === currentInnings.battingOrder[0])?.battingStats?.ballsFaced || 0})`
+                          : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">{currentInnings.battingOrder[1] ? 
+                        battingTeam.players.find(p => p.id === currentInnings.battingOrder[1])?.name 
+                        : "Non-striker"}</span>
+                      <span className="text-muted-foreground">
+                        {currentInnings.battingOrder[1] ? 
+                          `${battingTeam.players.find(p => p.id === currentInnings.battingOrder[1])?.battingStats?.runs || 0}(${battingTeam.players.find(p => p.id === currentInnings.battingOrder[1])?.battingStats?.ballsFaced || 0})`
+                          : ""}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Bowling: </span>
+                      <span className="font-medium">{bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.name || "Bowler"}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.bowlingStats ? 
+                        `${bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.bowlingStats?.wickets || 0}-${bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.bowlingStats?.runs || 0} (${bowlingTeam.players.find(p => p.id === currentInnings.bowlerId)?.bowlingStats?.overs || 0})`
+                        : ""}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Target and Required Rate Section */}
+        {match.currentInnings === 2 && target && (
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-cricket-secondary/10 to-cricket-secondary/5 p-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold text-cricket-secondary">Target: {target}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Needs {target - (currentInnings.runs || 0)} runs from {((match.totalOvers - currentInnings.overs) * 6).toFixed(0)} balls
+                  </p>
+                </div>
+                {requiredRunRate && (
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-cricket-secondary">{requiredRunRate}</div>
+                    <div className="text-xs text-muted-foreground">Required Rate</div>
+                  </div>
+                )}
+              </div>
+              
+              <Progress 
+                value={((currentInnings.runs || 0) / target) * 100} 
+                className="h-2 bg-muted [&>div]:bg-cricket-secondary"
+              />
+            </div>
           </div>
         )}
       </CardContent>
