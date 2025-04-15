@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Match, Team, Player } from '@/types/cricket';
+import { Match, Team, Player, MatchStatus } from '@/types/cricket';
 import { useCricket } from '@/context/CricketContext';
 import { ArrowLeft, CalendarIcon, MapPinIcon, Trophy, Users, Clock } from 'lucide-react';
 import { format } from 'date-fns';
@@ -59,18 +59,18 @@ const MatchDetails = () => {
             team2Id: data.team2_id,
             date: data.date,
             venue: data.venue,
-            status: data.status,
+            status: data.status as MatchStatus,
             tossWinnerId: data.toss_winner_id,
-            tossChoice: data.toss_choice,
-            currentInnings: data.current_innings,
+            tossChoice: data.toss_choice as 'bat' | 'bowl' | undefined,
+            currentInnings: data.current_innings as 1 | 2,
             totalOvers: data.total_overs,
             winnerId: data.winner_id,
             mvpId: data.mvp_id,
-            // Include the joined data
-            team1: data.team1 ? { name: data.team1?.name } : undefined,
-            team2: data.team2 ? { name: data.team2?.name } : undefined,
-            winner: data.winner ? { name: data.winner?.name } : undefined,
-            mvp: data.mvp ? { name: data.mvp?.name } : undefined,
+            // Include the joined data with proper type handling
+            team1: data.team1 ? { name: data.team1.name } : undefined,
+            team2: data.team2 ? { name: data.team2.name } : undefined,
+            winner: data.winner ? { name: data.winner.name } : undefined,
+            mvp: data.mvp ? { name: data.mvp.name } : undefined,
           };
           
           setMatch(matchData);
@@ -185,13 +185,13 @@ const MatchDetails = () => {
         </Button>
         
         <Badge 
-          variant={match.status === 'live' ? 'default' : match.status === 'completed' ? 'success' : 'outline'}
+          variant={match?.status === 'live' ? 'default' : match?.status === 'completed' ? 'secondary' : 'outline'}
           className={cn(
-            match.status === 'live' && "animate-pulse bg-red-500",
-            match.status === 'completed' && "bg-green-500"
+            match?.status === 'live' && "animate-pulse bg-red-500",
+            match?.status === 'completed' && "bg-green-500"
           )}
         >
-          {match.status.toUpperCase()}
+          {match?.status.toUpperCase()}
         </Badge>
       </div>
       

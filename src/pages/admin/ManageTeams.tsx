@@ -77,6 +77,7 @@ const ManageTeams = () => {
       const newTeam = await createTeam({
         name: teamName,
         status: 'active',
+        players: []
       });
       
       setShowCreateDialog(false);
