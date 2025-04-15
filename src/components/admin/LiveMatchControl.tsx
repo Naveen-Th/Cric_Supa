@@ -1,9 +1,4 @@
-<<<<<<< Updated upstream
-
-import { useState } from 'react';
-=======
 import { useState, useEffect } from 'react';
->>>>>>> Stashed changes
 import { useCricket } from '@/context/CricketContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MatchLocalStorage {
   striker: string | null;
@@ -71,23 +67,19 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   if (!battingTeam || !bowlingTeam) return null;
   
   // States for selected players and match control
-  const [selectedBatsman, setSelectedBatsman] = useState<string | null>(null);
+  const [striker, setStriker] = useState<string | null>(null);
+  const [nonStriker, setNonStriker] = useState<string | null>(null);
   const [selectedBowler, setSelectedBowler] = useState<string | null>(null);
   const [customRuns, setCustomRuns] = useState<number>(0);
   const [customOvers, setCustomOvers] = useState<number>(0);
-<<<<<<< Updated upstream
-=======
   const [isWicket, setIsWicket] = useState<boolean>(false);
   const [dismissedPlayers, setDismissedPlayers] = useState<string[]>([]); // Track dismissed players
->>>>>>> Stashed changes
   
   // States for match ending
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<string>('');
   const [selectedMVP, setSelectedMVP] = useState<string>('');
   
-<<<<<<< Updated upstream
-=======
   // Current innings state
   const currentInningsData = currentInnings === 1 ? match.innings1 : match.innings2;
 
@@ -260,21 +252,28 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     return oversPart + newBallsPart / 10; // Increment balls
   };
 
->>>>>>> Stashed changes
   // Handle run scoring
-  const handleAddRuns = (runs: number) => {
-    if (!selectedBatsman) {
+  const handleAddRuns = async (runs: number, isSpecialDelivery: boolean = false) => {
+    if (!striker) {
       toast({
-        title: "Batsman not selected",
-        description: "Please select a batsman first",
+        title: "Striker not selected",
+        description: "Please select a striker first",
         variant: "destructive",
       });
       return;
     }
     
+    if (!selectedBowler) {
+      toast({
+        title: "Bowler not selected",
+        description: "Please select a bowler first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Update match score
     updateScore(match.id, runs);
-<<<<<<< Updated upstream
-=======
     
     // Update player stats if not a special delivery (wide/no-ball)
     if (!isSpecialDelivery) {
@@ -288,15 +287,11 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       await updateBowlerOvers(selectedBowler, newOvers);
     }
     
->>>>>>> Stashed changes
     toast({
       title: `${runs} run${runs !== 1 ? 's' : ''} added`,
       description: `Score updated for ${battingTeam.name}`,
     });
   };
-<<<<<<< Updated upstream
-  
-=======
 
   // Handle special deliveries
   const handleSpecialDelivery = async (type: 'wide' | 'no-ball') => {
@@ -347,21 +342,17 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     });
   };
 
->>>>>>> Stashed changes
   // Handle wicket
-  const handleWicket = () => {
-    if (!selectedBatsman || !selectedBowler) {
+  const handleWicket = async () => {
+    if (!striker || !selectedBowler) {
       toast({
         title: "Players not selected",
-        description: "Please select both batsman and bowler",
+        description: "Please select both striker and bowler",
         variant: "destructive",
       });
       return;
     }
     
-<<<<<<< Updated upstream
-    updateScore(match.id, 0, 1);
-=======
     setIsWicket(true);
     setDismissedPlayers(prev => [...prev, striker]);
     
@@ -375,15 +366,17 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     const newOvers = calculateNewOvers(currentInningsData?.overs || 0);
     updateOvers(match.id, newOvers);
     
->>>>>>> Stashed changes
     toast({
       title: "Wicket added",
-      description: `${selectedBatsman} dismissed, bowled by ${selectedBowler}`,
+      description: `${striker} dismissed, bowled by ${selectedBowler}`,
     });
+    
+    // Reset striker
+    setStriker(null);
   };
   
-  // Handle over update
-  const handleUpdateOvers = () => {
+  // Handle over update - correcting the ball and over logic
+  const handleUpdateOvers = async () => {
     if (customOvers <= 0) {
       toast({
         title: "Invalid overs",
@@ -393,10 +386,33 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       return;
     }
     
-    updateOvers(match.id, customOvers);
+    if (!selectedBowler) {
+      toast({
+        title: "Bowler not selected",
+        description: "Please select a bowler first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Fix the over format (0.5 should be followed by 1.0, not 0.6)
+    let formattedOvers = customOvers;
+    const oversPart = Math.floor(customOvers);
+    const ballsPart = Math.round((customOvers - oversPart) * 10); // Get decimal part
+    
+    if (ballsPart > 5) {
+      formattedOvers = oversPart + 1; // Move to next over
+    }
+    
+    // Update match overs
+    updateOvers(match.id, formattedOvers);
+    
+    // Update bowler stats
+    await updateBowlerOvers(selectedBowler, formattedOvers);
+    
     toast({
       title: "Overs updated",
-      description: `Updated to ${customOvers} overs`,
+      description: `Updated to ${formattedOvers} overs`,
     });
   };
   
@@ -412,8 +428,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     }
     
     switchInnings(match.id);
-<<<<<<< Updated upstream
-=======
     
     // Reset player selections
     setStriker(null);
@@ -424,7 +438,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     // Clear localStorage for this match
     localStorage.removeItem(STORAGE_KEY + match.id);
     
->>>>>>> Stashed changes
     toast({
       title: "Innings switched",
       description: `Now ${bowlingTeam.name} is batting`,
@@ -446,14 +459,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     endMatch(match.id, selectedWinner, selectedMVP);
     setShowEndMatchDialog(false);
   };
-<<<<<<< Updated upstream
-  
-  // Current innings state
-  const currentInningsData = currentInnings === 1 ? match.innings1 : match.innings2;
-  
-=======
 
->>>>>>> Stashed changes
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -473,45 +479,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
               </div>
             </CardTitle>
           </CardHeader>
-<<<<<<< Updated upstream
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Select Batsman</label>
-                <Select onValueChange={setSelectedBatsman} value={selectedBatsman || undefined}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a batsman" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {battingTeam.players.map(player => (
-                      <SelectItem key={player.id} value={player.id}>
-                        {player.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid grid-cols-4 gap-2">
-                <Button onClick={() => handleAddRuns(1)} variant="outline">+1</Button>
-                <Button onClick={() => handleAddRuns(2)} variant="outline">+2</Button>
-                <Button onClick={() => handleAddRuns(4)} variant="outline">+4</Button>
-                <Button onClick={() => handleAddRuns(6)} variant="outline">+6</Button>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Input 
-                  type="number" 
-                  min="0"
-                  value={customRuns} 
-                  onChange={(e) => setCustomRuns(Number(e.target.value))} 
-                  className="w-20" 
-                />
-                <Button onClick={() => handleAddRuns(customRuns)} variant="outline">
-                  Add Runs
-                </Button>
-              </div>
-=======
           <CardContent className="space-y-6 pt-4">
             <div>
               <label className="block text-sm font-medium mb-1">Select Striker</label>
@@ -588,7 +555,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
               <Button onClick={() => handleAddRuns(customRuns)} variant="outline">
                 Add Runs
               </Button>
->>>>>>> Stashed changes
             </div>
           </CardContent>
         </Card>
@@ -606,45 +572,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
               </div>
             </CardTitle>
           </CardHeader>
-<<<<<<< Updated upstream
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Select Bowler</label>
-                <Select onValueChange={setSelectedBowler} value={selectedBowler || undefined}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a bowler" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bowlingTeam.players.map(player => (
-                      <SelectItem key={player.id} value={player.id}>
-                        {player.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                <Button onClick={handleWicket} variant="outline">
-                  Add Wicket
-                </Button>
-                
-                <div className="flex items-center gap-2 mt-2">
-                  <Input 
-                    type="number" 
-                    min="0"
-                    step="0.1"
-                    value={customOvers} 
-                    onChange={(e) => setCustomOvers(Number(e.target.value))} 
-                    className="w-20" 
-                  />
-                  <Button onClick={handleUpdateOvers} variant="outline">
-                    Update Overs
-                  </Button>
-                </div>
-              </div>
-=======
           <CardContent className="space-y-6 pt-4">
             <div>
               <label className="block text-sm font-medium mb-1">Select Bowler</label>
@@ -660,7 +587,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
                   ))}
                 </SelectContent>
               </Select>
->>>>>>> Stashed changes
             </div>
             
             {isWicket && (
@@ -726,7 +652,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
                   <SelectValue placeholder="Select MVP" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[...team1.players, ...team2.players].map(player => (
+                  {[...team1.players || [], ...team2.players || []].map(player => (
                     <SelectItem key={player.id} value={player.id}>
                       {player.name} ({teams.find(t => t.id === player.teamId)?.name})
                     </SelectItem>
