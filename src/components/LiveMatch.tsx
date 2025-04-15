@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from 'react';
 import { Match, Team } from '@/types/cricket';
 import { useCricket } from '@/context/CricketContext';
@@ -19,6 +20,7 @@ interface LiveMatchProps {
 const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveMatchProps) => {
   const { updateScore, updateOvers, switchInnings, endMatch } = useCricket();
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
+  const [previousStriker, setPreviousStriker] = useState<string | null>(null);
   
   const team1 = teams.find(team => team.id === match.team1Id);
   const team2 = teams.find(team => team.id === match.team2Id);
@@ -41,6 +43,22 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
     if (remainingOvers <= 0 || remainingRuns <= 0) return undefined;
     return (remainingRuns / remainingOvers).toFixed(2);
   })();
+
+  // Track previous striker when the striker changes
+  useEffect(() => {
+    if (striker === null && previousStriker === null) {
+      return;
+    }
+    
+    if (striker !== null && striker !== previousStriker) {
+      setPreviousStriker(striker);
+    }
+  }, [striker, previousStriker]);
+
+  // Reset previous striker on innings change
+  useEffect(() => {
+    setPreviousStriker(null);
+  }, [match.currentInnings]);
 
   const determineWinner = () => {
     if (!match.innings1) return null;
@@ -152,6 +170,12 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
     );
   }
 
+  // Get player stats and details
+  const strikerPlayer = striker ? battingTeam.players.find(p => p.id === striker) : null;
+  const nonStrikerPlayer = nonStriker ? battingTeam.players.find(p => p.id === nonStriker) : null;
+  const previousStrikerPlayer = previousStriker && !striker ? 
+    battingTeam.players.find(p => p.id === previousStriker) : null;
+
   return (
     <Card className="overflow-hidden shadow-lg border-2 border-cricket-pitch/20 bg-gradient-to-br from-background to-muted/20">
       <CardHeader className="relative p-6 cricket-field-bg before:absolute before:inset-0 before:bg-black/20 before:z-0">
@@ -233,49 +257,80 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
 
               <div className="mt-4">
                 <div className="flex flex-col space-y-3">
-                  {striker && battingTeam?.players && (
+                  {striker && strikerPlayer && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100">
                           *
                         </Badge>
                         <span className="font-semibold">
-                          {battingTeam.players.find(p => p.id === striker)?.name || 'Striker'}
+                          {strikerPlayer.name}
                         </span>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="tabular-nums">
-                          {battingTeam.players.find(p => p.id === striker)?.battingStats?.runs || 0}
+                        <span className="tabular-nums font-bold">
+                          {strikerPlayer.battingStats?.runs || 0}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          ({battingTeam.players.find(p => p.id === striker)?.battingStats?.ballsFaced || 0})
+                        <span className="text-sm text-muted-foreground tabular-nums">
+                          ({strikerPlayer.battingStats?.ballsFaced || 0} balls)
                         </span>
+                        {strikerPlayer.battingStats?.fours || strikerPlayer.battingStats?.sixes ? (
+                          <span className="text-xs text-muted-foreground">
+                            {strikerPlayer.battingStats?.fours || 0}×4, {strikerPlayer.battingStats?.sixes || 0}×6
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   )}
                   
-                  {nonStriker && battingTeam?.players && (
+                  {nonStriker && nonStrikerPlayer && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="opacity-50">
                           •
                         </Badge>
                         <span className="text-muted-foreground">
-                          {battingTeam.players.find(p => p.id === nonStriker)?.name || 'Non-striker'}
+                          {nonStrikerPlayer.name}
                         </span>
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="tabular-nums">
-                          {battingTeam.players.find(p => p.id === nonStriker)?.battingStats?.runs || 0}
+                          {nonStrikerPlayer.battingStats?.runs || 0}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          ({battingTeam.players.find(p => p.id === nonStriker)?.battingStats?.ballsFaced || 0})
+                        <span className="text-sm text-muted-foreground tabular-nums">
+                          ({nonStrikerPlayer.battingStats?.ballsFaced || 0} balls)
+                        </span>
+                        {nonStrikerPlayer.battingStats?.fours || nonStrikerPlayer.battingStats?.sixes ? (
+                          <span className="text-xs text-muted-foreground">
+                            {nonStrikerPlayer.battingStats?.fours || 0}×4, {nonStrikerPlayer.battingStats?.sixes || 0}×6
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+
+                  {!striker && previousStrikerPlayer && (
+                    <div className="flex items-center justify-between bg-red-50 p-2 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="destructive" className="opacity-80">
+                          OUT
+                        </Badge>
+                        <span className="font-medium text-red-700">
+                          {previousStrikerPlayer.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="tabular-nums">
+                          {previousStrikerPlayer.battingStats?.runs || 0}
+                        </span>
+                        <span className="text-sm text-muted-foreground tabular-nums">
+                          ({previousStrikerPlayer.battingStats?.ballsFaced || 0} balls)
                         </span>
                       </div>
                     </div>
                   )}
 
-                  {!striker && !nonStriker && (
+                  {!striker && !nonStriker && !previousStrikerPlayer && (
                     <div className="text-sm text-muted-foreground italic">
                       Waiting for batsmen...
                     </div>

@@ -1,4 +1,3 @@
-
 import { useCricket } from '@/context/CricketContext';
 import { Match, Team } from '@/types/cricket';
 import { BattingPartnership } from '@/context/cricket/cricketTypes';
@@ -16,6 +15,7 @@ interface LiveMatchWrapperProps {
 const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperProps) => {
   const [striker, setStriker] = useState<string | null>(null);
   const [nonStriker, setNonStriker] = useState<string | null>(null);
+  const [previousStriker, setPreviousStriker] = useState<string | null>(null);
   
   useEffect(() => {
     // Function to fetch the current batting partnership from the database
@@ -35,9 +35,10 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
           // If no partnership found, check localStorage as fallback
           const state = localStorage.getItem(`cricket_match_state_${match.id}`);
           if (state) {
-            const { striker: storedStriker, nonStriker: storedNonStriker } = JSON.parse(state);
+            const { striker: storedStriker, nonStriker: storedNonStriker, previousStriker: storedPreviousStriker } = JSON.parse(state);
             setStriker(storedStriker);
             setNonStriker(storedNonStriker);
+            setPreviousStriker(storedPreviousStriker || null);
           }
           return;
         }
@@ -46,6 +47,13 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
           const partnership = data[0] as BattingPartnership;
           setStriker(partnership.striker_id);
           setNonStriker(partnership.non_striker_id);
+          
+          // Check localStorage for previous striker info
+          const state = localStorage.getItem(`cricket_match_state_${match.id}`);
+          if (state) {
+            const { previousStriker: storedPreviousStriker } = JSON.parse(state);
+            setPreviousStriker(storedPreviousStriker || null);
+          }
         }
       } catch (error) {
         console.error('Error in fetchBattingPartnership:', error);
@@ -70,6 +78,12 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
           if (payload.new && payload.new.innings_number === match.currentInnings) {
             // Cast the payload to BattingPartnership type
             const partnership = payload.new as BattingPartnership;
+            
+            // If the striker is now null (out) and we had a previous striker, keep the previous striker
+            if (!partnership.striker_id && striker) {
+              setPreviousStriker(striker);
+            }
+            
             setStriker(partnership.striker_id);
             setNonStriker(partnership.non_striker_id);
           }
@@ -81,7 +95,15 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
     const updatePlayers = () => {
       const state = localStorage.getItem(`cricket_match_state_${match.id}`);
       if (state) {
-        const { striker: newStriker, nonStriker: newNonStriker } = JSON.parse(state);
+        const { striker: newStriker, nonStriker: newNonStriker, previousStriker: newPreviousStriker } = JSON.parse(state);
+        
+        if (!newStriker && striker) {
+          // If striker is now null and was previously set, update previous striker
+          setPreviousStriker(striker);
+        } else if (newPreviousStriker) {
+          setPreviousStriker(newPreviousStriker);
+        }
+        
         setStriker(newStriker);
         setNonStriker(newNonStriker);
       }
@@ -93,7 +115,7 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
       supabase.removeChannel(channel);
       window.removeEventListener('storage', updatePlayers);
     };
-  }, [match.id, match.currentInnings]);
+  }, [match.id, match.currentInnings, striker]);
 
   return (
     <div className="space-y-6">

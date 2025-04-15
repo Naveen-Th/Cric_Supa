@@ -29,6 +29,7 @@ interface MatchLocalStorage {
   currentOvers: number;
   currentRuns: number;
   dismissedPlayers: string[];
+  previousStriker: string | null;
 }
 
 const STORAGE_KEY = 'cricket_match_state_';
@@ -52,6 +53,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
   
   const [striker, setStriker] = useState<string | null>(null);
   const [nonStriker, setNonStriker] = useState<string | null>(null);
+  const [previousStriker, setPreviousStriker] = useState<string | null>(null);
   const [selectedBowler, setSelectedBowler] = useState<string | null>(null);
   const [customRuns, setCustomRuns] = useState<number>(0);
   const [customOvers, setCustomOvers] = useState<number>(0);
@@ -155,6 +157,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
             setCustomOvers(savedState.currentOvers);
             setCustomRuns(savedState.currentRuns);
             setDismissedPlayers(savedState.dismissedPlayers);
+            setPreviousStriker(savedState.previousStriker || null);
           }
         }
       } catch (error) {
@@ -167,6 +170,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
           setCustomOvers(savedState.currentOvers);
           setCustomRuns(savedState.currentRuns);
           setDismissedPlayers(savedState.dismissedPlayers);
+          setPreviousStriker(savedState.previousStriker || null);
         }
       }
     };
@@ -182,6 +186,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       currentOvers: currentInningsData?.overs || 0,
       currentRuns: currentInningsData?.runs || 0,
       dismissedPlayers,
+      previousStriker,
     });
     
     if (striker !== null || nonStriker !== null) {
@@ -194,7 +199,8 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     selectedBowler,
     currentInningsData?.overs,
     currentInningsData?.runs,
-    dismissedPlayers
+    dismissedPlayers,
+    previousStriker
   ]);
 
   const handleBatsmanChange = (playerId: string, role: 'striker' | 'nonStriker') => {
@@ -428,6 +434,9 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     setIsWicket(true);
     setDismissedPlayers(prev => [...prev, striker]);
     
+    // Store the current striker as the previous striker before setting striker to null
+    setPreviousStriker(striker);
+    
     updateScore(match.id, 0, 1);
     
     await updatePlayerStats(striker, 0, true);
@@ -496,6 +505,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     setNonStriker(null);
     setSelectedBowler(null);
     setDismissedPlayers([]);
+    setPreviousStriker(null);
     
     localStorage.removeItem(STORAGE_KEY + match.id);
     
