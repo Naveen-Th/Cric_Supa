@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCricket } from '@/context/CricketContext';
@@ -9,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarIcon, MapPin, Trophy, Users, ArrowLeft, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
-import { Match, Team } from '@/types/cricket';
+import { Match, Team, Player } from '@/types/cricket';
+import { toast } from '@/components/ui/use-toast';
 
 const MatchDetails = () => {
   const { matchId } = useParams<{ matchId: string }>();
@@ -33,7 +35,14 @@ const MatchDetails = () => {
           // If not found, try to fetch from Supabase
           const { data, error } = await supabase
             .from('matches')
-            .select('*, team1:team1_id(name), team2:team2_id(name), winner:winner_id(name), mvp:mvp_id(name), innings(*)')
+            .select(`
+              *,
+              team1:team1_id(name),
+              team2:team2_id(name),
+              winner:winner_id(name),
+              mvp:mvp_id(name),
+              innings(*)
+            `)
             .eq('id', matchId)
             .single();
           
@@ -73,9 +82,9 @@ const MatchDetails = () => {
                 battingOrder: [],
                 extras: innings2.extras,
               } : undefined,
-              // Keep the additional properties from Supabase for display
-              team1: { name: data.team1?.name || 'Team 1' },
-              team2: { name: data.team2?.name || 'Team 2' },
+              // Add team and MVP information
+              team1: data.team1 ? { name: data.team1.name } : { name: 'Team 1' },
+              team2: data.team2 ? { name: data.team2.name } : { name: 'Team 2' },
               winner: data.winner ? { name: data.winner.name } : undefined,
               mvp: data.mvp ? { name: data.mvp.name } : undefined
             };
@@ -86,6 +95,11 @@ const MatchDetails = () => {
       } catch (err) {
         console.error('Error fetching match:', err);
         setError('Failed to load match details');
+        toast({
+          title: 'Error',
+          description: 'Failed to load match details',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
@@ -94,41 +108,25 @@ const MatchDetails = () => {
     fetchMatch();
     
     // Set up real-time subscription
-    const subscription = supabase
+    const matchSubscription = supabase
       .channel('match-details')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
-        (payload) => {
-          console.log('Match updated:', payload);
-          // Transform the payload.new into our Match type
-          if (payload.new) {
-            const newData = payload.new as any;
-            setMatch(prevMatch => {
-              if (!prevMatch) return null;
-              
-              return {
-                ...prevMatch,
-                id: newData.id,
-                team1Id: newData.team1_id,
-                team2Id: newData.team2_id,
-                date: newData.date,
-                venue: newData.venue,
-                status: newData.status as 'upcoming' | 'live' | 'completed',
-                tossWinnerId: newData.toss_winner_id,
-                tossChoice: newData.toss_choice as 'bat' | 'bowl' | undefined,
-                currentInnings: newData.current_innings as 1 | 2,
-                totalOvers: newData.total_overs,
-                winnerId: newData.winner_id,
-                mvpId: newData.mvp_id,
-              };
-            });
-          }
-        }
+        () => fetchMatch()
       )
       .subscribe();
-    
+      
+    const inningsSubscription = supabase
+      .channel('innings-details')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'innings', filter: `match_id=eq.${matchId}` },
+        () => fetchMatch()
+      )
+      .subscribe();
+      
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(matchSubscription);
+      supabase.removeChannel(inningsSubscription);
     };
   }, [matchId, matches]);
   
@@ -182,7 +180,8 @@ const MatchDetails = () => {
   };
   
   // Get MVP if exists
-  const mvp = players.find(p => p.id === match.mvpId) || (match.mvp && { name: match.mvp.name });
+  const mvpPlayer = players.find(p => p.id === match.mvpId);
+  const mvp = mvpPlayer || (match.mvp ? { name: match.mvp.name } : null);
   
   // Get status badge
   const getStatusBadge = () => {
@@ -208,6 +207,11 @@ const MatchDetails = () => {
     }
   };
   
+  // Helper function to ensure players array exists
+  const getPlayersCount = (team: Team) => {
+    return team.players?.length || 0;
+  };
+  
   return (
     <MainLayout>
       <div className="mb-6 flex items-center">
@@ -224,6 +228,7 @@ const MatchDetails = () => {
         <div className="ml-4">{getStatusBadge()}</div>
       </div>
       
+      {/* Match Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
@@ -256,6 +261,7 @@ const MatchDetails = () => {
         </Card>
       </div>
       
+      {/* Completed Match Result */}
       {match.status === 'completed' && (
         <Card className="mb-8">
           <CardHeader>
@@ -331,6 +337,7 @@ const MatchDetails = () => {
         </Card>
       )}
       
+      {/* Upcoming Match Info */}
       {match.status === 'upcoming' && (
         <Card className="mb-8">
           <CardHeader>
@@ -354,11 +361,11 @@ const MatchDetails = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="font-medium">{team1.name}</p>
-                    <p className="text-sm text-gray-500">{team1.players?.length || 0} players</p>
+                    <p className="text-sm text-gray-500">{getPlayersCount(team1)} players</p>
                   </div>
                   <div>
                     <p className="font-medium">{team2.name}</p>
-                    <p className="text-sm text-gray-500">{team2.players?.length || 0} players</p>
+                    <p className="text-sm text-gray-500">{getPlayersCount(team2)} players</p>
                   </div>
                 </div>
               </div>
@@ -367,6 +374,7 @@ const MatchDetails = () => {
         </Card>
       )}
       
+      {/* Live Match CTA */}
       {match.status === 'live' && (
         <div className="text-center p-6 bg-cricket-pitch/10 rounded-lg mb-8">
           <p className="text-lg font-medium mb-2">This match is currently live!</p>
@@ -376,6 +384,7 @@ const MatchDetails = () => {
         </div>
       )}
       
+      {/* Teams and Match Details Tabs */}
       <Tabs defaultValue="teams">
         <TabsList className="w-full mb-6">
           <TabsTrigger value="teams" className="flex-1">
