@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Trophy } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LiveMatchProps {
   match: Match;
@@ -21,6 +22,9 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
   const { updateScore, updateOvers, switchInnings, endMatch } = useCricket();
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
   const [previousStriker, setPreviousStriker] = useState<string | null>(null);
+  const [strikerStats, setStrikerStats] = useState<{runs: number, ballsFaced: number, fours: number, sixes: number} | null>(null);
+  const [nonStrikerStats, setNonStrikerStats] = useState<{runs: number, ballsFaced: number, fours: number, sixes: number} | null>(null);
+  const [prevStrikerStats, setPrevStrikerStats] = useState<{runs: number, ballsFaced: number, fours: number, sixes: number} | null>(null);
   
   const team1 = teams.find(team => team.id === match.team1Id);
   const team2 = teams.find(team => team.id === match.team2Id);
@@ -43,6 +47,117 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
     if (remainingOvers <= 0 || remainingRuns <= 0) return undefined;
     return (remainingRuns / remainingOvers).toFixed(2);
   })();
+
+  // Fetch batting stats for players when they change
+  useEffect(() => {
+    const fetchBattingStats = async () => {
+      try {
+        // Fetch striker stats
+        if (striker) {
+          const { data: strikerData, error: strikerError } = await supabase
+            .from('batting_stats')
+            .select('*')
+            .eq('player_id', striker)
+            .single();
+          
+          if (strikerData && !strikerError) {
+            setStrikerStats({
+              runs: strikerData.runs || 0,
+              ballsFaced: strikerData.balls_faced || 0,
+              fours: strikerData.fours || 0,
+              sixes: strikerData.sixes || 0
+            });
+          } else {
+            setStrikerStats({ runs: 0, ballsFaced: 0, fours: 0, sixes: 0 });
+          }
+        } else {
+          setStrikerStats(null);
+        }
+        
+        // Fetch non-striker stats
+        if (nonStriker) {
+          const { data: nonStrikerData, error: nonStrikerError } = await supabase
+            .from('batting_stats')
+            .select('*')
+            .eq('player_id', nonStriker)
+            .single();
+          
+          if (nonStrikerData && !nonStrikerError) {
+            setNonStrikerStats({
+              runs: nonStrikerData.runs || 0,
+              ballsFaced: nonStrikerData.balls_faced || 0,
+              fours: nonStrikerData.fours || 0,
+              sixes: nonStrikerData.sixes || 0
+            });
+          } else {
+            setNonStrikerStats({ runs: 0, ballsFaced: 0, fours: 0, sixes: 0 });
+          }
+        } else {
+          setNonStrikerStats(null);
+        }
+        
+        // If striker is out, fetch previous striker stats
+        if (!striker && previousStriker) {
+          const { data: prevStrikerData, error: prevStrikerError } = await supabase
+            .from('batting_stats')
+            .select('*')
+            .eq('player_id', previousStriker)
+            .single();
+          
+          if (prevStrikerData && !prevStrikerError) {
+            setPrevStrikerStats({
+              runs: prevStrikerData.runs || 0,
+              ballsFaced: prevStrikerData.balls_faced || 0,
+              fours: prevStrikerData.fours || 0,
+              sixes: prevStrikerData.sixes || 0
+            });
+          } else {
+            setPrevStrikerStats({ runs: 0, ballsFaced: 0, fours: 0, sixes: 0 });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching batting stats:', error);
+      }
+    };
+
+    fetchBattingStats();
+    
+    // Subscribe to real-time updates for batting stats
+    const channel = supabase
+      .channel('batting-stats-changes')
+      .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'batting_stats',
+            filter: striker ? `player_id=eq.${striker}` : undefined
+          }, 
+          (payload) => {
+            console.log('Batting stats changed:', payload);
+            if (payload.new) {
+              const newStats = {
+                runs: payload.new.runs || 0,
+                ballsFaced: payload.new.balls_faced || 0,
+                fours: payload.new.fours || 0,
+                sixes: payload.new.sixes || 0
+              };
+              
+              if (striker && payload.new.player_id === striker) {
+                setStrikerStats(newStats);
+              } else if (nonStriker && payload.new.player_id === nonStriker) {
+                setNonStrikerStats(newStats);
+              } else if (previousStriker && payload.new.player_id === previousStriker) {
+                setPrevStrikerStats(newStats);
+              }
+            }
+          }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [striker, nonStriker, previousStriker]);
 
   // Track previous striker when the striker changes
   useEffect(() => {
@@ -269,14 +384,14 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="tabular-nums font-bold">
-                          {strikerPlayer.battingStats?.runs || 0}
+                          {strikerStats?.runs || 0}
                         </span>
                         <span className="text-sm text-muted-foreground tabular-nums">
-                          ({strikerPlayer.battingStats?.ballsFaced || 0} balls)
+                          ({strikerStats?.ballsFaced || 0} balls)
                         </span>
-                        {strikerPlayer.battingStats?.fours || strikerPlayer.battingStats?.sixes ? (
+                        {strikerStats?.fours || strikerStats?.sixes ? (
                           <span className="text-xs text-muted-foreground">
-                            {strikerPlayer.battingStats?.fours || 0}×4, {strikerPlayer.battingStats?.sixes || 0}×6
+                            {strikerStats?.fours || 0}×4, {strikerStats?.sixes || 0}×6
                           </span>
                         ) : null}
                       </div>
@@ -295,14 +410,14 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="tabular-nums">
-                          {nonStrikerPlayer.battingStats?.runs || 0}
+                          {nonStrikerStats?.runs || 0}
                         </span>
                         <span className="text-sm text-muted-foreground tabular-nums">
-                          ({nonStrikerPlayer.battingStats?.ballsFaced || 0} balls)
+                          ({nonStrikerStats?.ballsFaced || 0} balls)
                         </span>
-                        {nonStrikerPlayer.battingStats?.fours || nonStrikerPlayer.battingStats?.sixes ? (
+                        {nonStrikerStats?.fours || nonStrikerStats?.sixes ? (
                           <span className="text-xs text-muted-foreground">
-                            {nonStrikerPlayer.battingStats?.fours || 0}×4, {nonStrikerPlayer.battingStats?.sixes || 0}×6
+                            {nonStrikerStats?.fours || 0}×4, {nonStrikerStats?.sixes || 0}×6
                           </span>
                         ) : null}
                       </div>
@@ -321,10 +436,10 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="tabular-nums">
-                          {previousStrikerPlayer.battingStats?.runs || 0}
+                          {prevStrikerStats?.runs || 0}
                         </span>
                         <span className="text-sm text-muted-foreground tabular-nums">
-                          ({previousStrikerPlayer.battingStats?.ballsFaced || 0} balls)
+                          ({prevStrikerStats?.ballsFaced || 0} balls)
                         </span>
                       </div>
                     </div>
