@@ -66,9 +66,10 @@ const MatchDetails = () => {
           setTeam2(team2Data);
           setWinner(winnerData);
           
+          let mvpData = null;
           if (data.mvp_id) {
             const allPlayers = teams.flatMap(team => team.players || []);
-            const mvpData = allPlayers.find(p => p.id === data.mvp_id) || null;
+            mvpData = allPlayers.find(p => p.id === data.mvp_id) || null;
             setMvp(mvpData);
           }
           
