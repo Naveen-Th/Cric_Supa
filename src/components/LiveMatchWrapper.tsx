@@ -1,6 +1,7 @@
+
 import { useCricket } from '@/context/CricketContext';
 import { Match, Team } from '@/types/cricket';
-import { BattingPartnership } from '@/context/cricket/cricketTypes';
+import { BattingPartnership } from '@/types/cricket';
 import LiveMatch from './LiveMatch';
 import LiveMatchControl from './admin/LiveMatchControl';
 import { useEffect, useState } from 'react';

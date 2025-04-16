@@ -225,6 +225,48 @@ export type Database = {
           },
         ]
       }
+      match_batting_stats: {
+        Row: {
+          balls_faced: number
+          created_at: string | null
+          fours: number
+          id: string
+          innings_number: number
+          is_out: boolean
+          match_id: string
+          player_id: string
+          runs: number
+          sixes: number
+          updated_at: string | null
+        }
+        Insert: {
+          balls_faced?: number
+          created_at?: string | null
+          fours?: number
+          id?: string
+          innings_number: number
+          is_out?: boolean
+          match_id: string
+          player_id: string
+          runs?: number
+          sixes?: number
+          updated_at?: string | null
+        }
+        Update: {
+          balls_faced?: number
+          created_at?: string | null
+          fours?: number
+          id?: string
+          innings_number?: number
+          is_out?: boolean
+          match_id?: string
+          player_id?: string
+          runs?: number
+          sixes?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           created_at: string | null

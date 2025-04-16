@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from 'react';
 import { Match, Team } from '@/types/cricket';
 import { useCricket } from '@/context/CricketContext';
@@ -48,14 +49,16 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
   })();
 
   useEffect(() => {
-    const fetchBattingStats = async () => {
+    const fetchMatchBattingStats = async () => {
       try {
         if (striker) {
           const { data: strikerData, error: strikerError } = await supabase
-            .from('batting_stats')
+            .from('match_batting_stats')
             .select('*')
+            .eq('match_id', match.id)
+            .eq('innings_number', match.currentInnings)
             .eq('player_id', striker)
-            .single();
+            .maybeSingle();
           
           if (strikerData && !strikerError) {
             setStrikerStats({
@@ -73,10 +76,12 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
         
         if (nonStriker) {
           const { data: nonStrikerData, error: nonStrikerError } = await supabase
-            .from('batting_stats')
+            .from('match_batting_stats')
             .select('*')
+            .eq('match_id', match.id)
+            .eq('innings_number', match.currentInnings)
             .eq('player_id', nonStriker)
-            .single();
+            .maybeSingle();
           
           if (nonStrikerData && !nonStrikerError) {
             setNonStrikerStats({
@@ -94,10 +99,12 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
         
         if (!striker && previousStriker) {
           const { data: prevStrikerData, error: prevStrikerError } = await supabase
-            .from('batting_stats')
+            .from('match_batting_stats')
             .select('*')
+            .eq('match_id', match.id)
+            .eq('innings_number', match.currentInnings)
             .eq('player_id', previousStriker)
-            .single();
+            .maybeSingle();
           
           if (prevStrikerData && !prevStrikerError) {
             setPrevStrikerStats({
@@ -111,25 +118,30 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
           }
         }
       } catch (error) {
-        console.error('Error fetching batting stats:', error);
+        console.error('Error fetching match batting stats:', error);
       }
     };
 
-    fetchBattingStats();
+    fetchMatchBattingStats();
     
+    // Subscribe to realtime updates for match-specific batting stats
     const channel = supabase
-      .channel('batting-stats-changes')
+      .channel('match-batting-stats-changes')
       .on('postgres_changes', 
           { 
             event: '*', 
             schema: 'public', 
-            table: 'batting_stats',
-            filter: striker ? `player_id=eq.${striker}` : undefined
+            table: 'match_batting_stats',
+            filter: `match_id=eq.${match.id}`
           }, 
           (payload) => {
-            console.log('Batting stats changed:', payload);
+            console.log('Match batting stats changed:', payload);
             if (payload.new) {
               const newData = payload.new as any;
+              
+              // Only update stats if the innings number matches current innings
+              if (newData.innings_number !== match.currentInnings) return;
+              
               const newStats = {
                 runs: newData.runs || 0,
                 ballsFaced: newData.balls_faced || 0,
@@ -152,7 +164,7 @@ const LiveMatch = ({ match, teams, isAdmin = false, striker, nonStriker }: LiveM
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [striker, nonStriker, previousStriker]);
+  }, [match.id, match.currentInnings, striker, nonStriker, previousStriker]);
 
   useEffect(() => {
     if (striker === null && previousStriker === null) {

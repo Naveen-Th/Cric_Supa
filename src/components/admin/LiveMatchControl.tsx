@@ -219,6 +219,53 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     try {
       if (!playerId) return;
       
+      // Find or create match batting stats for this player
+      const { data: existingStats, error: statsError } = await supabase
+        .from('match_batting_stats')
+        .select('*')
+        .eq('match_id', match.id)
+        .eq('innings_number', match.currentInnings)
+        .eq('player_id', playerId)
+        .maybeSingle();
+        
+      if (statsError && statsError.code !== 'PGRST116') {
+        console.error('Error fetching match batting stats:', statsError);
+        return;
+      }
+      
+      const isFour = runs === 4;
+      const isSix = runs === 6;
+      
+      if (existingStats) {
+        // Update existing match batting stats
+        await supabase
+          .from('match_batting_stats')
+          .update({
+            runs: existingStats.runs + runs,
+            balls_faced: existingStats.balls_faced + 1,
+            fours: existingStats.fours + (isFour ? 1 : 0),
+            sixes: existingStats.sixes + (isSix ? 1 : 0),
+            is_out: isWicket,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingStats.id);
+      } else {
+        // Create new match batting stats
+        await supabase
+          .from('match_batting_stats')
+          .insert({
+            match_id: match.id,
+            innings_number: match.currentInnings,
+            player_id: playerId,
+            runs: runs,
+            balls_faced: 1,
+            fours: isFour ? 1 : 0,
+            sixes: isSix ? 1 : 0,
+            is_out: isWicket
+          });
+      }
+      
+      // Also update the aggregate batting stats for historical records
       const { data: battingData, error: battingError } = await supabase
         .from('batting_stats')
         .select('*')
@@ -229,9 +276,6 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
         console.error('Error fetching batting stats:', battingError);
         return;
       }
-      
-      const isFour = runs === 4;
-      const isSix = runs === 6;
       
       if (battingData) {
         await supabase
