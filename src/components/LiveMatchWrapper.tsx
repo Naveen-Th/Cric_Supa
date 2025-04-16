@@ -55,9 +55,51 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
             const { previousStriker: storedPreviousStriker } = JSON.parse(state);
             setPreviousStriker(storedPreviousStriker || null);
           }
+          
+          // Initialize match_batting_stats for striker and non-striker if needed
+          if (partnership.striker_id) {
+            initializeMatchBattingStats(partnership.striker_id);
+          }
+          if (partnership.non_striker_id) {
+            initializeMatchBattingStats(partnership.non_striker_id);
+          }
         }
       } catch (error) {
         console.error('Error in fetchBattingPartnership:', error);
+      }
+    };
+    
+    // Initialize match_batting_stats for a player if record doesn't exist
+    const initializeMatchBattingStats = async (playerId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('match_batting_stats')
+          .select('id')
+          .eq('match_id', match.id)
+          .eq('innings_number', match.currentInnings)
+          .eq('player_id', playerId)
+          .maybeSingle();
+          
+        if ((error && error.code !== 'PGRST116') || data) {
+          return; // Either error or record already exists
+        }
+        
+        // Create record if it doesn't exist
+        await supabase
+          .from('match_batting_stats')
+          .insert({
+            match_id: match.id,
+            innings_number: match.currentInnings,
+            player_id: playerId,
+            runs: 0,
+            balls_faced: 0,
+            fours: 0,
+            sixes: 0,
+            is_out: false
+          });
+          
+      } catch (error) {
+        console.error('Error in initializeMatchBattingStats:', error);
       }
     };
 
@@ -87,6 +129,14 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
             
             setStriker(partnership.striker_id);
             setNonStriker(partnership.non_striker_id);
+            
+            // Initialize stats for new striker or non-striker if needed
+            if (partnership.striker_id && partnership.striker_id !== striker) {
+              initializeMatchBattingStats(partnership.striker_id);
+            }
+            if (partnership.non_striker_id && partnership.non_striker_id !== nonStriker) {
+              initializeMatchBattingStats(partnership.non_striker_id);
+            }
           }
         }
       )
@@ -107,6 +157,14 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
         
         setStriker(newStriker);
         setNonStriker(newNonStriker);
+        
+        // Initialize stats for new players
+        if (newStriker && newStriker !== striker) {
+          initializeMatchBattingStats(newStriker);
+        }
+        if (newNonStriker && newNonStriker !== nonStriker) {
+          initializeMatchBattingStats(newNonStriker);
+        }
       }
     };
     
@@ -116,7 +174,7 @@ const LiveMatchWrapper = ({ match, teams, isAdmin = false }: LiveMatchWrapperPro
       supabase.removeChannel(channel);
       window.removeEventListener('storage', updatePlayers);
     };
-  }, [match.id, match.currentInnings, striker]);
+  }, [match.id, match.currentInnings, striker, nonStriker]);
 
   return (
     <div className="space-y-6">

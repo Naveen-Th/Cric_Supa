@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useCricket } from '@/context/CricketContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -213,6 +212,52 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     const updatedStriker = role === 'striker' ? playerId : striker;
     const updatedNonStriker = role === 'nonStriker' ? playerId : nonStriker;
     updateBattingPartnership(updatedStriker, updatedNonStriker);
+    
+    // When a new batsman comes in, make sure they have a record in match_batting_stats
+    if (role === 'striker' && playerId) {
+      createMatchBattingStatsIfNotExists(playerId);
+    } else if (role === 'nonStriker' && playerId) {
+      createMatchBattingStatsIfNotExists(playerId);
+    }
+  };
+
+  const createMatchBattingStatsIfNotExists = async (playerId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('match_batting_stats')
+        .select('id')
+        .eq('match_id', match.id)
+        .eq('innings_number', match.currentInnings)
+        .eq('player_id', playerId)
+        .maybeSingle();
+        
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking match batting stats:', error);
+        return;
+      }
+      
+      if (!data) {
+        // Create new match batting stats record
+        const { error: insertError } = await supabase
+          .from('match_batting_stats')
+          .insert({
+            match_id: match.id,
+            innings_number: match.currentInnings,
+            player_id: playerId,
+            runs: 0,
+            balls_faced: 0,
+            fours: 0,
+            sixes: 0,
+            is_out: false
+          });
+          
+        if (insertError) {
+          console.error('Error creating match batting stats:', insertError);
+        }
+      }
+    } catch (error) {
+      console.error('Error in createMatchBattingStatsIfNotExists:', error);
+    }
   };
 
   const updatePlayerStats = async (playerId: string, runs: number, isWicket: boolean = false) => {

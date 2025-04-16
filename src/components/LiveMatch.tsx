@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from 'react';
 import { Match, Team } from '@/types/cricket';
 import { useCricket } from '@/context/CricketContext';
