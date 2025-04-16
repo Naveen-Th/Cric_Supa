@@ -1,4 +1,3 @@
-
 import { useCricket } from '@/context/CricketContext';
 import { Match, Team } from '@/types/cricket';
 import { BattingPartnership } from '@/types/cricket';
