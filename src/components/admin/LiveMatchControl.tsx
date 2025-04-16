@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useCricket } from '@/context/CricketContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -264,7 +265,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     try {
       if (!playerId) return;
       
-      // Find or create match batting stats for this player
+      // First update match-specific batting stats
       const { data: existingStats, error: statsError } = await supabase
         .from('match_batting_stats')
         .select('*')
@@ -283,7 +284,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       
       if (existingStats) {
         // Update existing match batting stats
-        await supabase
+        const { error: updateError } = await supabase
           .from('match_batting_stats')
           .update({
             runs: existingStats.runs + runs,
@@ -294,9 +295,13 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
             updated_at: new Date().toISOString()
           })
           .eq('id', existingStats.id);
+          
+        if (updateError) {
+          console.error('Error updating match batting stats:', updateError);
+        }
       } else {
         // Create new match batting stats
-        await supabase
+        const { error: insertError } = await supabase
           .from('match_batting_stats')
           .insert({
             match_id: match.id,
@@ -308,6 +313,10 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
             sixes: isSix ? 1 : 0,
             is_out: isWicket
           });
+          
+        if (insertError) {
+          console.error('Error creating match batting stats:', insertError);
+        }
       }
       
       // Also update the aggregate batting stats for historical records
@@ -315,7 +324,7 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
         .from('batting_stats')
         .select('*')
         .eq('player_id', playerId)
-        .single();
+        .maybeSingle();
         
       if (battingError && battingError.code !== 'PGRST116') {
         console.error('Error fetching batting stats:', battingError);
@@ -323,7 +332,8 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       }
       
       if (battingData) {
-        await supabase
+        // Update existing aggregate batting stats
+        const { error: updateError } = await supabase
           .from('batting_stats')
           .update({
             runs: battingData.runs + runs,
@@ -332,8 +342,13 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
             sixes: battingData.sixes + (isSix ? 1 : 0)
           })
           .eq('player_id', playerId);
+          
+        if (updateError) {
+          console.error('Error updating batting stats:', updateError);
+        }
       } else {
-        await supabase
+        // Create new aggregate batting stats
+        const { error: insertError } = await supabase
           .from('batting_stats')
           .insert({
             player_id: playerId,
@@ -342,6 +357,10 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
             fours: isFour ? 1 : 0,
             sixes: isSix ? 1 : 0
           });
+          
+        if (insertError) {
+          console.error('Error creating batting stats:', insertError);
+        }
       }
       
       if (isWicket && selectedBowler) {
@@ -438,16 +457,21 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       return;
     }
     
+    // First update the match score
     updateScore(match.id, runs);
     
     if (!isSpecialDelivery) {
+      // Update the player's batting stats (both match-specific and aggregate)
       await updatePlayerStats(striker, runs);
 
+      // Update overs count
       const newOvers = calculateNewOvers(currentInningsData?.overs || 0);
       updateOvers(match.id, newOvers);
       
+      // Update bowler stats
       await updateBowlerOvers(selectedBowler, newOvers);
 
+      // Handle striker rotation
       const isEndOfOver = Math.floor(newOvers * 10) % 10 === 0;
       if ((runs % 2 === 1) || isEndOfOver) {
         const temp = striker;
@@ -526,10 +550,13 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
     // Store the current striker as the previous striker before setting striker to null
     setPreviousStriker(striker);
     
+    // Update match score with wicket
     updateScore(match.id, 0, 1);
     
+    // Update player stats to reflect the wicket (also increases balls faced)
     await updatePlayerStats(striker, 0, true);
 
+    // Update overs
     const newOvers = calculateNewOvers(currentInningsData?.overs || 0);
     updateOvers(match.id, newOvers);
     
@@ -538,8 +565,10 @@ const LiveMatchControl = ({ match, teams }: LiveMatchControlProps) => {
       description: `${striker} dismissed, bowled by ${selectedBowler}`,
     });
     
+    // Set the striker to null since they're now out
     setStriker(null);
     
+    // Update the batting partnership
     updateBattingPartnership(null, nonStriker);
   };
 
