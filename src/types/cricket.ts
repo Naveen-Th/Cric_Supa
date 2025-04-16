@@ -60,3 +60,13 @@ export type Match = {
   winner?: { name: string };
   mvp?: { name: string };
 };
+
+export type BattingPartnership = {
+  id: string;
+  match_id: string;
+  innings_number: number;
+  striker_id: string | null;
+  non_striker_id: string | null;
+  created_at?: string;
+  updated_at?: string;
+};

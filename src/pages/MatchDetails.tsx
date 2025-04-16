@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -54,6 +55,7 @@ const MatchDetails = () => {
           
         if (error) {
           console.error('Error fetching match:', error);
+          setLoading(false);
           return;
         }
         
