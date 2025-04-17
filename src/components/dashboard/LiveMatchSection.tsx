@@ -3,6 +3,7 @@ import { Match, Team } from '@/types/cricket';
 import LiveMatchWrapper from '@/components/LiveMatchWrapper';
 import LiveMatchChart from '@/components/LiveMatchChart';
 import { Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface LiveMatchSectionProps {
   liveMatch: Match;
@@ -28,11 +29,31 @@ const LiveMatchSection = ({ liveMatch, teams, isLoading = false }: LiveMatchSect
     );
   }
   
+  // Get the team objects for display
+  const team1 = teams.find(team => team.id === liveMatch.team1Id);
+  const team2 = teams.find(team => team.id === liveMatch.team2Id);
+  
+  if (!team1 || !team2) {
+    return (
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4 flex items-center">
+          <span className="h-3 w-3 rounded-full bg-cricket-ball mr-2 animate-pulse"></span>
+          Live Match
+        </h2>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-center text-gray-500">Match data is incomplete. Unable to display match details.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   return (
     <div className="mb-8">
       <h2 className="text-2xl font-bold mb-4 flex items-center">
         <span className="h-3 w-3 rounded-full bg-cricket-ball mr-2 animate-pulse"></span>
-        Live Match
+        Live Match: {team1.name} vs {team2.name}
       </h2>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
