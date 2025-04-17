@@ -1,8 +1,10 @@
+
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCricket } from '@/context/CricketContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LiveMatchWrapper from '@/components/LiveMatchWrapper';
+import LiveMatchChart from '@/components/LiveMatchChart';
 import PlayerQuickActions from '@/components/admin/PlayerQuickActions';
 import { Link } from 'react-router-dom';
 import AdminQuickAction from '@/components/admin/AdminQuickAction';
@@ -22,11 +24,19 @@ const AdminDashboard = () => {
       {liveMatch && (
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Live Match</h2>
-          <LiveMatchWrapper 
-            match={liveMatch} 
-            teams={teams} 
-            isAdmin={true} 
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="lg:col-span-1">
+              <LiveMatchWrapper 
+                match={liveMatch} 
+                teams={teams} 
+                isAdmin={true} 
+              />
+            </div>
+            
+            <div className="lg:col-span-1">
+              <LiveMatchChart match={liveMatch} teams={teams} />
+            </div>
+          </div>
         </div>
       )}
       

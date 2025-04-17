@@ -1,9 +1,11 @@
+
 import { useCricket } from '@/context/CricketContext';
 import MainLayout from '@/components/layout/MainLayout';
 import LiveMatchWrapper from '@/components/LiveMatchWrapper';
 import TeamCard from '@/components/TeamCard';
 import TeamStatsCard from '@/components/TeamStatsCard';
 import MatchCard from '@/components/MatchCard';
+import LiveMatchChart from '@/components/LiveMatchChart';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Trophy, Users, Calendar, BarChart4 } from 'lucide-react';
@@ -54,7 +56,16 @@ const Dashboard = () => {
               <span className="h-3 w-3 rounded-full bg-cricket-ball mr-2 animate-pulse"></span>
               Live Match
             </h2>
-            <LiveMatchWrapper match={liveMatch} teams={teams} />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="lg:col-span-1">
+                <LiveMatchWrapper match={liveMatch} teams={teams} />
+              </div>
+              
+              <div className="lg:col-span-1">
+                <LiveMatchChart match={liveMatch} teams={teams} />
+              </div>
+            </div>
           </div>
         ) : (
           <div className="mb-8 p-6 bg-gray-50 rounded-lg text-center">
