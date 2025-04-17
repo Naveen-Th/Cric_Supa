@@ -1,12 +1,10 @@
+
 import MainLayout from '@/components/layout/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCricket } from '@/context/CricketContext';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LiveMatchWrapper from '@/components/LiveMatchWrapper';
 import LiveMatchChart from '@/components/LiveMatchChart';
-import PlayerQuickActions from '@/components/admin/PlayerQuickActions';
-import AdminQuickAction from '@/components/admin/AdminQuickAction';
-import { Users, Plus, Trophy } from 'lucide-react';
+import QuickActionsCard from '@/components/admin/QuickActionsCard';
+import StatsSummaryCards from '@/components/admin/StatsSummaryCards';
 
 const AdminDashboard = () => {
   const { liveMatch, teams, matches } = useCricket();
@@ -39,91 +37,10 @@ const AdminDashboard = () => {
       )}
       
       {/* Quick Actions */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common administrative tasks</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="teams">
-            <TabsList className="mb-4">
-              <TabsTrigger value="teams">Teams</TabsTrigger>
-              <TabsTrigger value="matches">Matches</TabsTrigger>
-              <TabsTrigger value="players">Players</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="teams">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                <AdminQuickAction
-                  icon={Users}
-                  title="View All Teams"
-                  description="See all registered teams"
-                  onClick={() => {}}
-                />
-                <AdminQuickAction
-                  icon={Plus}
-                  title="Create New Team"
-                  description="Add a new cricket team"
-                  onClick={() => {}}
-                />
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="matches">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                <AdminQuickAction
-                  icon={Trophy}
-                  title="View All Matches"
-                  description="See all scheduled matches"
-                  onClick={() => {}}
-                />
-                <AdminQuickAction
-                  icon={Plus}
-                  title="Create New Match"
-                  description="Schedule a new cricket match"
-                  onClick={() => {}}
-                />
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="players">
-              <PlayerQuickActions />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      <QuickActionsCard />
       
       {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Teams</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{teams.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Matches</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{matches.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {liveMatch ? 'Live Match in Progress' : 'No Live Matches'}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <StatsSummaryCards teams={teams} matches={matches} liveMatch={liveMatch} />
     </MainLayout>
   );
 };
