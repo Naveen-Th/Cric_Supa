@@ -1,4 +1,3 @@
-
 import { useCricket } from '@/context/CricketContext';
 import MainLayout from '@/components/layout/MainLayout';
 import LiveMatchWrapper from '@/components/LiveMatchWrapper';
@@ -17,14 +16,11 @@ const Dashboard = () => {
   const { liveMatch, activeTeams, matches, teams, players, loading } = useCricket();
   const navigate = useNavigate();
   
-  // Get upcoming matches (not live, not completed)
   const upcomingMatches = matches.filter(match => match.status === 'upcoming');
   const completedMatches = matches.filter(match => match.status === 'completed');
   
-  // Get top teams (those with most completed matches won)
   const topTeams = activeTeams.slice(0, 3);
   
-  // Get top batsmen and bowlers across all teams
   const topBatsmen = players
     .filter(p => p.battingStats && p.battingStats.runs > 0)
     .sort((a, b) => (b.battingStats?.runs || 0) - (a.battingStats?.runs || 0))
@@ -49,7 +45,6 @@ const Dashboard = () => {
     <MainLayout>
       <div className="grid grid-cols-1 gap-6">
         
-        {/* Live Match Section */}
         {liveMatch ? (
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-4 flex items-center">
@@ -74,7 +69,6 @@ const Dashboard = () => {
           </div>
         )}
         
-        {/* Player Statistics Summary */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold flex items-center">
@@ -105,7 +99,6 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {/* Upcoming Matches Section */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold flex items-center">
@@ -137,7 +130,6 @@ const Dashboard = () => {
           )}
         </div>
         
-        {/* Team Highlights */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold flex items-center">
@@ -167,7 +159,6 @@ const Dashboard = () => {
           )}
         </div>
         
-        {/* Teams and Completed Matches Tabs */}
         <Tabs defaultValue="teams" className="w-full">
           <TabsList className="mb-4 w-full">
             <TabsTrigger value="teams" className="flex-1">

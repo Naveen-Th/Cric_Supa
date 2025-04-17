@@ -1,4 +1,3 @@
-
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCricket } from '@/context/CricketContext';
@@ -6,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LiveMatchWrapper from '@/components/LiveMatchWrapper';
 import LiveMatchChart from '@/components/LiveMatchChart';
 import PlayerQuickActions from '@/components/admin/PlayerQuickActions';
-import { Link } from 'react-router-dom';
 import AdminQuickAction from '@/components/admin/AdminQuickAction';
 import { Users, Plus, Trophy } from 'lucide-react';
 

@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Trophy, Flag } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useCricket } from '@/context/CricketContext';
 
 interface LiveMatchChartProps {
   match: Match;
@@ -13,10 +15,12 @@ interface LiveMatchChartProps {
 }
 
 const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
+  const { switchInnings, endMatch } = useCricket();
   const [chartData, setChartData] = useState<any[]>([]);
   const [team1Name, setTeam1Name] = useState("");
   const [team2Name, setTeam2Name] = useState("");
   const [matchResult, setMatchResult] = useState<string | null>(null);
+  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
   
   // Get team names
   useEffect(() => {
@@ -26,6 +30,127 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
     if (team1) setTeam1Name(team1.name);
     if (team2) setTeam2Name(team2.name);
   }, [match, teams]);
+  
+  // Function to handle auto innings switching
+  const handleAutoInningsSwitch = async (innings1: any) => {
+    if (isAutoProcessing) return;
+    
+    // Check if we need to switch innings automatically
+    if (match.currentInnings === 1 && innings1) {
+      const maxOvers = match.totalOvers;
+      const allWickets = 10; // Standard cricket has 10 wickets per team
+      
+      // Check if first innings should end (all overs completed or all wickets lost)
+      if (innings1.overs >= maxOvers || innings1.wickets >= allWickets) {
+        setIsAutoProcessing(true);
+        console.log('Auto-switching innings after innings 1 completed');
+        
+        try {
+          await switchInnings(match.id);
+          console.log('Innings switched automatically');
+        } catch (error) {
+          console.error('Error auto-switching innings:', error);
+        } finally {
+          setIsAutoProcessing(false);
+        }
+      }
+    }
+  };
+
+  // Function to handle auto match end
+  const handleAutoMatchEnd = async (innings1: any, innings2: any) => {
+    if (isAutoProcessing || !innings1 || !innings2) return;
+    
+    const team1Score = innings1.runs;
+    const team2Score = innings2.runs;
+    const team2Wickets = innings2.wickets;
+    const maxOvers = match.totalOvers;
+    const allWickets = 10;
+    
+    // Determine if match should end automatically
+    const shouldEndMatch = 
+      // Team 2 surpassed Team 1's score
+      (team2Score > team1Score) ||
+      // Team 2 completed all overs
+      (innings2.overs >= maxOvers) ||
+      // Team 2 lost all wickets
+      (team2Wickets >= allWickets);
+      
+    if (shouldEndMatch && match.status === 'live') {
+      setIsAutoProcessing(true);
+      
+      // Determine winner
+      let winnerId;
+      if (team2Score > team1Score) {
+        winnerId = match.team2Id;
+        const wicketsRemaining = allWickets - team2Wickets;
+        setMatchResult(`${team2Name} wins by ${wicketsRemaining} wickets`);
+      } else if (team2Score < team1Score) {
+        winnerId = match.team1Id;
+        const runsDifference = team1Score - team2Score;
+        setMatchResult(`${team1Name} wins by ${runsDifference} runs`);
+      } else {
+        // Match tied
+        winnerId = null;
+        setMatchResult("Match Tied");
+      }
+      
+      try {
+        // For auto-ending, we'll use a simplified MVP selection
+        // In a real app, you'd want more sophisticated logic here
+        const mvpId = winnerId === match.team1Id 
+          ? innings1.teamId // Use first innings batting team player
+          : innings2.teamId; // Use second innings batting team player
+          
+        if (winnerId) {
+          console.log(`Auto-ending match, winner: ${winnerId}`);
+          await endMatch(match.id, winnerId, mvpId);
+        }
+      } catch (error) {
+        console.error('Error auto-ending match:', error);
+      } finally {
+        setIsAutoProcessing(false);
+      }
+    }
+  };
+  
+  // Check match result based on innings data
+  const checkMatchResult = (innings1: any, innings2: any) => {
+    if (!innings1) return;
+    
+    const team1Score = innings1.runs;
+    
+    if (!innings2) {
+      // First innings still in progress
+      return;
+    }
+    
+    const team2Score = innings2.runs;
+    const team2Wickets = innings2.wickets;
+    const maxOvers = match.totalOvers;
+    const allWickets = 10; // Assuming standard cricket with 10 wickets
+    
+    // Team 2 batting and already surpassed Team 1's score
+    if (team2Score > team1Score) {
+      // Team 2 wins by wickets
+      const wicketsRemaining = allWickets - team2Wickets;
+      setMatchResult(`${team2Name} wins by ${wicketsRemaining} wickets`);
+      return;
+    }
+    
+    // Check if innings 2 is complete (either all overs used or all wickets lost)
+    if (innings2.overs >= maxOvers || team2Wickets >= allWickets) {
+      // Team 1 wins by runs
+      if (team2Score < team1Score) {
+        const runsDifference = team1Score - team2Score;
+        setMatchResult(`${team1Name} wins by ${runsDifference} runs`);
+      } 
+      // Match tied
+      else if (team2Score === team1Score) {
+        setMatchResult("Match Tied");
+      }
+    }
+  };
   
   // Fetch chart data and set up real-time listeners
   useEffect(() => {
@@ -114,44 +239,14 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
         
         setChartData(processedData.length > 0 ? processedData : [{ over: 0, [team1Name]: 0, [team2Name]: 0 }]);
         
-        // Check for match result
+        // Check for auto-actions
+        handleAutoInningsSwitch(innings1);
+        handleAutoMatchEnd(innings1, innings2);
+        
+        // Also update the UI with match result (even if not auto-ending)
         checkMatchResult(innings1, innings2);
       } catch (error) {
         console.error('Error in fetchInningsData:', error);
-      }
-    };
-    
-    // Function to check match result based on innings data
-    const checkMatchResult = (innings1: any, innings2: any) => {
-      if (!innings1 || !innings2) return;
-      
-      const team1Score = innings1.runs;
-      const team2Score = innings2.runs;
-      const team2Wickets = innings2.wickets;
-      const maxOvers = match.totalOvers;
-      const allWickets = 10; // Assuming standard cricket with 10 wickets
-      
-      // Check win conditions
-      if (team2Score > team1Score) {
-        // Team 2 wins by wickets
-        const wicketsRemaining = allWickets - team2Wickets;
-        setMatchResult(`${team2Name} wins by ${wicketsRemaining} wickets`);
-      } else if (
-        team2Score < team1Score && 
-        (innings2.overs >= maxOvers || team2Wickets >= allWickets)
-      ) {
-        // Team 1 wins by runs
-        const runsDifference = team1Score - team2Score;
-        setMatchResult(`${team1Name} wins by ${runsDifference} runs`);
-      } else if (
-        team2Score === team1Score && 
-        (innings2.overs >= maxOvers || team2Wickets >= allWickets)
-      ) {
-        // Match tied
-        setMatchResult("Match Tied");
-      } else {
-        // Match in progress
-        setMatchResult(null);
       }
     };
     
@@ -187,10 +282,10 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
         <CardTitle className="text-lg flex items-center justify-between">
           <span>Match Progress</span>
           {matchResult && (
-            <div className="flex items-center text-sm font-medium text-green-600">
-              <AlertCircle className="h-4 w-4 mr-1" />
+            <Badge variant="outline" className="flex items-center text-sm font-medium text-green-600 border-green-300 bg-green-50">
+              <Trophy className="h-4 w-4 mr-1 text-green-600" />
               {matchResult}
-            </div>
+            </Badge>
           )}
         </CardTitle>
       </CardHeader>

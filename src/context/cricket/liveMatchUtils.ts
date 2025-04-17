@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Match } from '@/types/cricket';
 import { toast } from '@/components/ui/use-toast';
@@ -55,6 +54,19 @@ export async function startMatch(matchId: string, matches: Match[]): Promise<voi
 
 export async function endMatch(matchId: string, winnerId: string, mvpId: string): Promise<void> {
   try {
+    // Check if the match is already completed
+    const { data: matchCheck } = await supabase
+      .from('matches')
+      .select('status')
+      .eq('id', matchId)
+      .single();
+      
+    if (matchCheck?.status === 'completed') {
+      // Match is already completed, no need to update
+      console.log('Match is already completed');
+      return;
+    }
+    
     const { error } = await supabase
       .from('matches')
       .update({
@@ -158,7 +170,28 @@ export async function updateOvers(matchId: string, matches: Match[], overs: numb
 export async function switchInnings(matchId: string, matches: Match[]): Promise<void> {
   try {
     const match = matches.find(m => m.id === matchId);
-    if (!match || match.currentInnings !== 1) return;
+    if (!match) {
+      console.error('Match not found for switching innings');
+      return;
+    }
+    
+    if (match.currentInnings !== 1) {
+      console.log('Not in first innings, cannot switch');
+      return;
+    }
+    
+    // Check if we've already switched to second innings
+    const { data: inningsCheck } = await supabase
+      .from('innings')
+      .select('id')
+      .eq('match_id', matchId)
+      .eq('innings_number', 2)
+      .maybeSingle();
+      
+    if (inningsCheck) {
+      console.log('Second innings already exists');
+      return;
+    }
     
     const secondInningsTeamId = match.innings1?.teamId === match.team1Id ? match.team2Id : match.team1Id;
     
