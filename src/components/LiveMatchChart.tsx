@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertCircle, Trophy, Flag } from 'lucide-react';
+import { Trophy, Flag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCricket } from '@/context/CricketContext';
+import { toast } from '@/components/ui/use-toast';
 
 interface LiveMatchChartProps {
   match: Match;
@@ -15,7 +16,7 @@ interface LiveMatchChartProps {
 }
 
 const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
-  const { switchInnings, endMatch } = useCricket();
+  const { switchInnings, endMatch, updateMatch } = useCricket();
   const [chartData, setChartData] = useState<any[]>([]);
   const [team1Name, setTeam1Name] = useState("");
   const [team2Name, setTeam2Name] = useState("");
@@ -33,7 +34,7 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
   
   // Function to handle auto innings switching
   const handleAutoInningsSwitch = async (innings1: any) => {
-    if (isAutoProcessing) return;
+    if (isAutoProcessing || match.status !== 'live') return;
     
     // Check if we need to switch innings automatically
     if (match.currentInnings === 1 && innings1) {
@@ -48,6 +49,10 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
         try {
           await switchInnings(match.id);
           console.log('Innings switched automatically');
+          toast({
+            title: 'Innings Complete',
+            description: `${team1Name} innings complete. ${team2Name} now batting.`,
+          });
         } catch (error) {
           console.error('Error auto-switching innings:', error);
         } finally {
@@ -59,7 +64,7 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
 
   // Function to handle auto match end
   const handleAutoMatchEnd = async (innings1: any, innings2: any) => {
-    if (isAutoProcessing || !innings1 || !innings2) return;
+    if (isAutoProcessing || !innings1 || !innings2 || match.status !== 'live') return;
     
     const team1Score = innings1.runs;
     const team2Score = innings2.runs;
@@ -76,23 +81,27 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
       // Team 2 lost all wickets
       (team2Wickets >= allWickets);
       
-    if (shouldEndMatch && match.status === 'live') {
+    if (shouldEndMatch) {
       setIsAutoProcessing(true);
       
       // Determine winner
-      let winnerId;
+      let winnerId: string | undefined;
+      let resultMessage: string;
+      
       if (team2Score > team1Score) {
         winnerId = match.team2Id;
         const wicketsRemaining = allWickets - team2Wickets;
-        setMatchResult(`${team2Name} wins by ${wicketsRemaining} wickets`);
+        resultMessage = `${team2Name} wins by ${wicketsRemaining} wickets`;
+        setMatchResult(resultMessage);
       } else if (team2Score < team1Score) {
         winnerId = match.team1Id;
         const runsDifference = team1Score - team2Score;
-        setMatchResult(`${team1Name} wins by ${runsDifference} runs`);
+        resultMessage = `${team1Name} wins by ${runsDifference} runs`;
+        setMatchResult(resultMessage);
       } else {
         // Match tied
-        winnerId = null;
-        setMatchResult("Match Tied");
+        resultMessage = "Match Tied";
+        setMatchResult(resultMessage);
       }
       
       try {
@@ -105,6 +114,22 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
         if (winnerId) {
           console.log(`Auto-ending match, winner: ${winnerId}`);
           await endMatch(match.id, winnerId, mvpId);
+          toast({
+            title: 'Match Complete',
+            description: resultMessage,
+          });
+        } else {
+          // Handle tied match
+          console.log('Match tied - updating status to completed');
+          const updatedMatch = {
+            ...match,
+            status: 'completed' as const
+          };
+          await updateMatch(updatedMatch);
+          toast({
+            title: 'Match Complete',
+            description: 'Match ended in a tie!',
+          });
         }
       } catch (error) {
         console.error('Error auto-ending match:', error);
@@ -128,7 +153,7 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
     const team2Score = innings2.runs;
     const team2Wickets = innings2.wickets;
     const maxOvers = match.totalOvers;
-    const allWickets = 10; // Assuming standard cricket with 10 wickets
+    const allWickets = 10;
     
     // Team 2 batting and already surpassed Team 1's score
     if (team2Score > team1Score) {
@@ -150,6 +175,11 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
         setMatchResult("Match Tied");
       }
     }
+  };
+  
+  // Format the chart tooltip
+  const formatChartTooltip = (value: any, name: string) => {
+    return [`${value} runs`, name];
   };
   
   // Fetch chart data and set up real-time listeners
@@ -191,7 +221,7 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
             // This is a simplified calculation - in a real app you'd want actual per-over data
             const runsAtOver = isCurrentOver 
               ? innings1.runs
-              : Math.round((innings1.runs / oversCompleted) * i);
+              : Math.round((innings1.runs / Math.max(oversCompleted, 1)) * i);
               
             const dataPoint: any = {
               over: i,
@@ -216,7 +246,7 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
             // Calculate runs for second innings up to this over
             const runsAtOver = isCurrentOver 
               ? innings2.runs
-              : Math.round((innings2.runs / oversCompleted) * i);
+              : Math.round((innings2.runs / Math.max(oversCompleted, 1)) * i);
               
             if (i < processedData.length) {
               // Update existing data point
@@ -237,6 +267,7 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
           }
         }
         
+        // Ensure we have data to display
         setChartData(processedData.length > 0 ? processedData : [{ over: 0, [team1Name]: 0, [team2Name]: 0 }]);
         
         // Check for auto-actions
@@ -313,7 +344,7 @@ const LiveMatchChart = ({ match, teams }: LiveMatchChartProps) => {
                 <ChartTooltip 
                   content={
                     <ChartTooltipContent 
-                      formatter={(value, name) => [`${value} runs`, name]} 
+                      formatter={formatChartTooltip} 
                     />
                   } 
                 />

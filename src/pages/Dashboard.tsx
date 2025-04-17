@@ -7,6 +7,7 @@ import PlayerStatsSection from '@/components/dashboard/PlayerStatsSection';
 import UpcomingMatchesSection from '@/components/dashboard/UpcomingMatchesSection';
 import TeamHighlightsSection from '@/components/dashboard/TeamHighlightsSection';
 import TeamsAndMatchesTabs from '@/components/dashboard/TeamsAndMatchesTabs';
+import { Loader2 } from 'lucide-react';
 
 const Dashboard = () => {
   const { liveMatch, activeTeams, matches, teams, players, loading } = useCricket();
@@ -30,7 +31,10 @@ const Dashboard = () => {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cricket-accent"></div>
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-10 w-10 text-cricket-primary animate-spin" />
+            <p className="text-cricket-primary font-medium">Loading dashboard data...</p>
+          </div>
         </div>
       </MainLayout>
     );
@@ -40,9 +44,9 @@ const Dashboard = () => {
     <MainLayout>
       <div className="grid grid-cols-1 gap-6">
         {liveMatch ? (
-          <LiveMatchSection liveMatch={liveMatch} teams={teams} />
+          <LiveMatchSection liveMatch={liveMatch} teams={teams} isLoading={false} />
         ) : (
-          <NoLiveMatchSection />
+          <NoLiveMatchSection upcomingMatchCount={upcomingMatches.length} />
         )}
         
         <PlayerStatsSection topBatsmen={topBatsmen} topBowlers={topBowlers} />
