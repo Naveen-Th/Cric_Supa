@@ -7,6 +7,7 @@ import { Player } from '@/types/cricket';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
+import { CircleOff, Circle, CircleDot } from 'lucide-react';
 
 interface BattingStats {
   id: number | string;
@@ -31,16 +32,24 @@ interface WicketInfo {
   dismissal_type?: string;
 }
 
+interface BallUpdate {
+  description: string;
+  type: 'run' | 'wide' | 'wicket' | 'no-ball';
+  value: number;
+  time: string;
+}
+
 const BattingStatsSection = () => {
   const { liveMatch, players } = useCricket();
   const [battingStats, setBattingStats] = useState<BattingStats[]>([]);
-  const [yetToBat, setYetToBat] = useState<Player[]>([]);
+  const [yetToBat, setYetToBat] = useState<Record<string, Player[]>>({});
   const [teams, setTeams] = useState<{ team1Name: string; team2Name: string }>({ team1Name: '', team2Name: '' });
   const [activeTab, setActiveTab] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastWicket, setLastWicket] = useState<WicketInfo | null>(null);
-  const [ballByBallUpdates, setBallByBallUpdates] = useState<string[]>([]);
+  const [ballByBallUpdates, setBallByBallUpdates] = useState<BallUpdate[]>([]);
+  const [currentBowler, setCurrentBowler] = useState<{ name: string, overs: number, wickets: number, runs: number } | null>(null);
 
   useEffect(() => {
     const fetchTeamNames = async () => {
@@ -75,6 +84,61 @@ const BattingStatsSection = () => {
 
     fetchTeamNames();
   }, [liveMatch]);
+
+  useEffect(() => {
+    const fetchCurrentBowler = async () => {
+      if (!liveMatch) return;
+      
+      try {
+        // Get current bowler from match_bowling_stats
+        const { data: bowlerData, error } = await supabase
+          .from('match_bowling_stats')
+          .select('*')
+          .eq('match_id', liveMatch.id)
+          .eq('innings_number', liveMatch.currentInnings)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+          
+        if (error) {
+          console.error('Error fetching current bowler:', error);
+          return;
+        }
+        
+        if (bowlerData && bowlerData.length > 0) {
+          setCurrentBowler({
+            name: bowlerData[0].player_name || 'Unknown Bowler',
+            overs: bowlerData[0].overs || 0,
+            wickets: bowlerData[0].wickets || 0,
+            runs: bowlerData[0].runs || 0
+          });
+        }
+      } catch (error) {
+        console.error('Error in fetchCurrentBowler:', error);
+      }
+    };
+    
+    fetchCurrentBowler();
+    
+    // Set up subscription for bowling stats changes
+    const channel = supabase
+      .channel('match-bowling-stats-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'match_bowling_stats',
+          filter: `match_id=eq.${liveMatch?.id}`
+        }, 
+        () => {
+          fetchCurrentBowler();
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [liveMatch, liveMatch?.currentInnings]);
 
   useEffect(() => {
     const fetchBattingStats = async () => {
@@ -144,11 +208,11 @@ const BattingStatsSection = () => {
             runs: lastOut.runs,
             balls_faced: lastOut.balls_faced,
             wicket_time: new Date().toLocaleTimeString(),
-            dismissal_type: 'Bowled' // Placeholder - would come from actual data
+            dismissal_type: 'Bowled' // Would come from actual data in a real implementation
           });
         }
 
-        // Update yet to bat list
+        // Update yet to bat list for each team
         const team1Players = players.filter(p => p.team_id === liveMatch.team1Id);
         const team2Players = players.filter(p => p.team_id === liveMatch.team2Id);
         
@@ -176,9 +240,9 @@ const BattingStatsSection = () => {
         setYetToBat({
           [liveMatch.team1Id]: team1YetToBat,
           [liveMatch.team2Id]: team2YetToBat
-        }[activeTab] || []);
+        });
         
-        // Fetch ball-by-ball updates (last 5 balls)
+        // Fetch ball-by-ball updates (mock data for now)
         fetchBallByBallUpdates();
         
       } catch (error) {
@@ -193,14 +257,14 @@ const BattingStatsSection = () => {
       if (!liveMatch) return;
       
       try {
-        // This is a placeholder - in a real app, you would have a ball_by_ball table
-        // For now, we'll generate some sample data
-        const sampleUpdates = [
-          "Over 4.2: Smith scores 4 runs",
-          "Over 4.1: Smith scores 1 run",
-          "Over 4.0: Jones scores 0 runs",
-          "Over 3.5: Jones scores 6 runs",
-          "Over 3.4: WICKET! Martinez bowled by Taylor for 15 runs"
+        // This would be replaced with a real API call in a production app
+        // For now, we'll generate sample data
+        const sampleUpdates: BallUpdate[] = [
+          { description: "Over 4.2: 4 runs", type: 'run', value: 4, time: "2m ago" },
+          { description: "Over 4.1: 1 run", type: 'run', value: 1, time: "3m ago" },
+          { description: "Over 4.0: Wide", type: 'wide', value: 1, time: "3m ago" },
+          { description: "Over 3.5: 6 runs", type: 'run', value: 6, time: "4m ago" },
+          { description: "Over 3.4: WICKET!", type: 'wicket', value: 0, time: "5m ago" }
         ];
         
         setBallByBallUpdates(sampleUpdates);
@@ -321,7 +385,7 @@ const BattingStatsSection = () => {
                         : "0.00";
 
                       return (
-                        <TableRow key={stat.id} className={stat.is_striker ? "bg-green-50" : ""}>
+                        <TableRow key={stat.id} className={stat.is_striker ? "bg-green-50" : (stat.status === 'out' ? "bg-red-50" : "")}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <span>{stat.player_name}</span>
@@ -349,11 +413,11 @@ const BattingStatsSection = () => {
               </Table>
             </div>
             
-            {yetToBat.length > 0 && (
+            {yetToBat[liveMatch.team1Id]?.length > 0 && (
               <div className="mt-4 space-y-2 border-t pt-4">
                 <h4 className="font-medium">Yet to Bat</h4>
                 <div className="text-sm text-muted-foreground">
-                  {yetToBat.map(player => player.name).join(' • ')}
+                  {yetToBat[liveMatch.team1Id].map(player => player.name).join(' • ')}
                 </div>
               </div>
             )}
@@ -385,7 +449,7 @@ const BattingStatsSection = () => {
                         : "0.00";
 
                       return (
-                        <TableRow key={stat.id} className={stat.is_striker ? "bg-green-50" : ""}>
+                        <TableRow key={stat.id} className={stat.is_striker ? "bg-green-50" : (stat.status === 'out' ? "bg-red-50" : "")}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <span>{stat.player_name}</span>
@@ -413,27 +477,79 @@ const BattingStatsSection = () => {
               </Table>
             </div>
             
-            {yetToBat.length > 0 && (
+            {yetToBat[liveMatch.team2Id]?.length > 0 && (
               <div className="mt-4 space-y-2 border-t pt-4">
                 <h4 className="font-medium">Yet to Bat</h4>
                 <div className="text-sm text-muted-foreground">
-                  {yetToBat.map(player => player.name).join(' • ')}
+                  {yetToBat[liveMatch.team2Id].map(player => player.name).join(' • ')}
                 </div>
               </div>
             )}
           </TabsContent>
         </Tabs>
 
-        {/* Ball-by-ball updates */}
+        {/* Current Bowler Information */}
+        {currentBowler && (
+          <div className="mt-4 border-t pt-4">
+            <h4 className="font-medium mb-2">Current Bowler</h4>
+            <div className="flex items-center justify-between bg-muted/20 p-3 rounded-lg">
+              <div className="font-semibold">{currentBowler.name}</div>
+              <div className="flex gap-3 text-sm">
+                <span>{currentBowler.overs} overs</span>
+                <span>{currentBowler.wickets} wickets</span>
+                <span>{currentBowler.runs} runs</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ball-by-ball updates with color coding */}
         <div className="mt-6 border-t pt-4">
           <h4 className="font-medium mb-2">Recent Ball-by-Ball Updates</h4>
           <div className="bg-muted/30 rounded-lg p-3 space-y-2 max-h-32 overflow-y-auto">
-            {ballByBallUpdates.map((update, index) => (
-              <div key={index} className="text-sm flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-cricket-primary"></span>
-                {update}
-              </div>
-            ))}
+            {ballByBallUpdates.map((update, index) => {
+              // Determine icon and color based on update type
+              const getUpdateStyle = () => {
+                switch(update.type) {
+                  case 'run':
+                    return { 
+                      icon: update.value === 4 || update.value === 6 ? 
+                        <Circle className="h-4 w-4 fill-green-500 text-green-500" /> : 
+                        <CircleDot className="h-4 w-4 text-green-500" />,
+                      bgColor: 'bg-green-50',
+                      textColor: 'text-green-700'
+                    };
+                  case 'wide':
+                    return { 
+                      icon: <Circle className="h-4 w-4 text-blue-500" />, 
+                      bgColor: 'bg-blue-50',
+                      textColor: 'text-blue-700'
+                    };
+                  case 'wicket':
+                    return { 
+                      icon: <CircleOff className="h-4 w-4 text-red-500" />, 
+                      bgColor: 'bg-red-50',
+                      textColor: 'text-red-700'
+                    };
+                  default:
+                    return { 
+                      icon: <CircleDot className="h-4 w-4" />, 
+                      bgColor: 'bg-gray-50',
+                      textColor: 'text-gray-700'
+                    };
+                }
+              };
+              
+              const { icon, bgColor, textColor } = getUpdateStyle();
+              
+              return (
+                <div key={index} className={`text-sm flex items-center gap-2 ${bgColor} ${textColor} p-2 rounded-md`}>
+                  {icon}
+                  <span className="font-medium">{update.description}</span>
+                  <span className="ml-auto text-xs opacity-70">{update.time}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </CardContent>
