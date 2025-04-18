@@ -5,6 +5,8 @@ export const mockPlayers: Player[] = [
     id: 'player-1',
     name: 'Virat Kohli',
     role: 'Batsman',
+    team_id: 'team-1',
+    teamId: 'team-1',
     battingStats: {
       runs: 142,
       ballsFaced: 98,
@@ -17,12 +19,13 @@ export const mockPlayers: Player[] = [
       runs: 0,
       wickets: 0,
     },
-    teamId: 'team-1',
   },
   {
     id: 'player-2',
     name: 'Rohit Sharma',
     role: 'Batsman',
+    team_id: 'team-1',
+    teamId: 'team-1',
     battingStats: {
       runs: 87,
       ballsFaced: 56,
@@ -35,12 +38,13 @@ export const mockPlayers: Player[] = [
       runs: 0,
       wickets: 0,
     },
-    teamId: 'team-1',
   },
   {
     id: 'player-3',
     name: 'Jasprit Bumrah',
     role: 'Bowler',
+    team_id: 'team-1',
+    teamId: 'team-1',
     battingStats: {
       runs: 12,
       ballsFaced: 8,
@@ -53,12 +57,13 @@ export const mockPlayers: Player[] = [
       runs: 22,
       wickets: 3,
     },
-    teamId: 'team-1',
   },
   {
     id: 'player-4',
     name: 'Ravindra Jadeja',
     role: 'All-Rounder',
+    team_id: 'team-1',
+    teamId: 'team-1',
     battingStats: {
       runs: 56,
       ballsFaced: 42,
@@ -71,12 +76,13 @@ export const mockPlayers: Player[] = [
       runs: 28,
       wickets: 2,
     },
-    teamId: 'team-1',
   },
   {
     id: 'player-5',
     name: 'Kane Williamson',
     role: 'Batsman',
+    team_id: 'team-2',
+    teamId: 'team-2',
     battingStats: {
       runs: 92,
       ballsFaced: 78,
@@ -89,12 +95,13 @@ export const mockPlayers: Player[] = [
       runs: 0,
       wickets: 0,
     },
-    teamId: 'team-2',
   },
   {
     id: 'player-6',
     name: 'Trent Boult',
     role: 'Bowler',
+    team_id: 'team-2',
+    teamId: 'team-2',
     battingStats: {
       runs: 8,
       ballsFaced: 6,
@@ -107,12 +114,13 @@ export const mockPlayers: Player[] = [
       runs: 18,
       wickets: 4,
     },
-    teamId: 'team-2',
   },
   {
     id: 'player-7',
     name: 'Joe Root',
     role: 'Batsman',
+    team_id: 'team-3',
+    teamId: 'team-3',
     battingStats: {
       runs: 76,
       ballsFaced: 62,
@@ -125,12 +133,13 @@ export const mockPlayers: Player[] = [
       runs: 14,
       wickets: 0,
     },
-    teamId: 'team-3',
   },
   {
     id: 'player-8',
     name: 'James Anderson',
     role: 'Bowler',
+    team_id: 'team-3',
+    teamId: 'team-3',
     battingStats: {
       runs: 4,
       ballsFaced: 6,
@@ -143,7 +152,6 @@ export const mockPlayers: Player[] = [
       runs: 42,
       wickets: 3,
     },
-    teamId: 'team-3',
   },
 ];
 
@@ -152,22 +160,22 @@ export const mockTeams: Team[] = [
     id: 'team-1',
     name: 'Royal Challengers',
     logo: '/team-logo-1.png',
-    players: mockPlayers.filter(player => player.teamId === 'team-1'),
     status: 'active',
+    players: mockPlayers.filter(player => player.team_id === 'team-1'),
   },
   {
     id: 'team-2',
     name: 'Super Kings',
     logo: '/team-logo-2.png',
-    players: mockPlayers.filter(player => player.teamId === 'team-2'),
     status: 'active',
+    players: mockPlayers.filter(player => player.team_id === 'team-2'),
   },
   {
     id: 'team-3',
     name: 'Knight Riders',
     logo: '/team-logo-3.png',
-    players: mockPlayers.filter(player => player.teamId === 'team-3'),
     status: 'active',
+    players: mockPlayers.filter(player => player.team_id === 'team-3'),
   },
 ];
 

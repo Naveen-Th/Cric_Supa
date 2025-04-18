@@ -161,7 +161,7 @@ const Statistics = () => {
         <p className="text-muted-foreground">View comprehensive player and team statistics across all matches.</p>
       </div>
       
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-md">
         <CardHeader>
           <CardTitle>Statistics View</CardTitle>
         </CardHeader>
@@ -246,7 +246,7 @@ const Statistics = () => {
           </TabsList>
           
           <TabsContent value="batting">
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
                 <CardTitle>Top Batsmen</CardTitle>
               </CardHeader>
@@ -306,7 +306,7 @@ const Statistics = () => {
                 <div className="mt-6 h-80">
                   <h3 className="font-medium mb-4">Runs Comparison</h3>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
+                    <ReBarChart
                       data={topBatsmen.map(player => ({
                         name: player.name,
                         runs: player.battingStats?.runs || 0,
@@ -320,7 +320,7 @@ const Statistics = () => {
                       <Tooltip formatter={(value, name) => [value, name === 'runs' ? 'Runs' : name]} />
                       <Legend />
                       <Bar dataKey="runs" fill="#8884d8" name="Runs" />
-                    </BarChart>
+                    </ReBarChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -328,7 +328,7 @@ const Statistics = () => {
           </TabsContent>
           
           <TabsContent value="bowling">
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
                 <CardTitle>Top Bowlers</CardTitle>
               </CardHeader>
@@ -382,7 +382,7 @@ const Statistics = () => {
                 <div className="mt-6 h-80">
                   <h3 className="font-medium mb-4">Wickets Comparison</h3>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
+                    <ReBarChart
                       data={topBowlers.map(player => ({
                         name: player.name,
                         wickets: player.bowlingStats?.wickets || 0,
@@ -398,7 +398,7 @@ const Statistics = () => {
                       <Tooltip />
                       <Legend />
                       <Bar dataKey="wickets" fill="#82ca9d" name="Wickets" />
-                    </BarChart>
+                    </ReBarChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -410,7 +410,7 @@ const Statistics = () => {
       {/* Team Statistics */}
       {selectedView === 'teams' && (
         <div className="grid grid-cols-1 gap-6">
-          <Card>
+          <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <BarChart2 className="mr-2 h-5 w-5" />
@@ -420,7 +420,7 @@ const Statistics = () => {
             <CardContent>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
+                  <ReBarChart
                     data={teamComparisonData}
                     margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
                   >
@@ -432,7 +432,7 @@ const Statistics = () => {
                     <Bar dataKey="runs" fill="#8884d8" name="Total Runs" />
                     <Bar dataKey="wickets" fill="#82ca9d" name="Total Wickets" />
                     <Bar dataKey="wins" fill="#ffc658" name="Wins" />
-                  </BarChart>
+                  </ReBarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
@@ -440,7 +440,7 @@ const Statistics = () => {
           
           {/* If a team is selected, show match-by-match performance */}
           {selectedTeam !== 'all' && (
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
                 <CardTitle>
                   {teams.find(t => t.id === selectedTeam)?.name} Match Performance
@@ -488,7 +488,7 @@ const Statistics = () => {
       {/* Match Analysis */}
       {selectedView === 'matches' && selectedMatch !== 'all' && selectedMatchData && (
         <div className="grid grid-cols-1 gap-6">
-          <Card>
+          <Card className="shadow-md">
             <CardHeader>
               <CardTitle>
                 Manhattan Chart - Runs per Over
@@ -497,7 +497,7 @@ const Statistics = () => {
             <CardContent>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
+                  <ReBarChart
                     data={manhattanData}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
@@ -516,13 +516,13 @@ const Statistics = () => {
                         />
                       ))
                     }
-                  </BarChart>
+                  </ReBarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Target className="mr-2 h-5 w-5" />
@@ -583,7 +583,7 @@ const Statistics = () => {
       )}
       
       {selectedView === 'matches' && selectedMatch === 'all' && (
-        <Card>
+        <Card className="shadow-md">
           <CardContent className="p-6">
             <p className="text-center text-gray-500">Please select a specific match to view detailed analytics.</p>
           </CardContent>

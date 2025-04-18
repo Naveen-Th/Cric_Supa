@@ -21,7 +21,8 @@ export async function fetchTeams(): Promise<Team[]> {
         id: player.id,
         name: player.name,
         role: player.role as 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket Keeper',
-        teamId: player.team_id,
+        team_id: player.team_id,
+        teamId: player.team_id, // Add teamId alias for compatibility
       })),
     }));
     

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Player } from '@/types/cricket';
 import { Button } from '@/components/ui/button';
@@ -34,7 +33,8 @@ const PlayerForm = ({
   const [playerData, setPlayerData] = useState<Omit<Player, 'id'>>({
     name: initialData?.name || '',
     role: initialData?.role || 'Batsman',
-    teamId: initialData?.teamId || (teamOptions[0]?.id || ''),
+    team_id: initialData?.team_id || initialData?.teamId || (teamOptions[0]?.id || ''),
+    teamId: initialData?.team_id || initialData?.teamId || (teamOptions[0]?.id || ''),
     battingStats: initialData?.battingStats || { runs: 0, ballsFaced: 0, fours: 0, sixes: 0 },
     bowlingStats: initialData?.bowlingStats || { overs: 0, maidens: 0, runs: 0, wickets: 0 },
   });
@@ -49,7 +49,7 @@ const PlayerForm = ({
       return;
     }
 
-    if (!playerData.teamId) {
+    if (!playerData.team_id) {
       toast({
         title: 'Error',
         description: 'Please select a team',
@@ -101,8 +101,12 @@ const PlayerForm = ({
           <div className="space-y-2">
             <Label htmlFor="player-team">Team</Label>
             <Select 
-              value={playerData.teamId} 
-              onValueChange={(value) => setPlayerData({ ...playerData, teamId: value })}
+              value={playerData.team_id} 
+              onValueChange={(value) => setPlayerData({ 
+                ...playerData, 
+                team_id: value,
+                teamId: value
+              })}
             >
               <SelectTrigger id="player-team">
                 <SelectValue placeholder="Select a team" />

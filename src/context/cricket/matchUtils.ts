@@ -1,7 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Match } from '@/types/cricket';
 import { toast } from '@/components/ui/use-toast';
+import { mockMatches } from '@/data/mockData'; // Import mock data as fallback
 
 export async function fetchMatches(): Promise<Match[]> {
   try {
@@ -9,7 +9,15 @@ export async function fetchMatches(): Promise<Match[]> {
       .from('matches')
       .select('*, innings(*)');
       
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching matches from Supabase:', error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.log('No matches found in Supabase, using mock data');
+      return mockMatches; // Return mock data if no matches in the database
+    }
     
     // Transform data to match our Match type
     const transformedMatches: Match[] = data.map(match => {
@@ -53,10 +61,10 @@ export async function fetchMatches(): Promise<Match[]> {
     console.error('Error fetching matches:', error);
     toast({
       title: 'Error',
-      description: 'Failed to fetch matches',
+      description: 'Failed to fetch matches from database. Using mock data instead.',
       variant: 'destructive',
     });
-    return [];
+    return mockMatches; // Return mock data on error
   }
 }
 

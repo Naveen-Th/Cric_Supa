@@ -5,7 +5,7 @@ import LiveMatchSection from '@/components/dashboard/LiveMatchSection';
 import NoLiveMatchSection from '@/components/dashboard/NoLiveMatchSection';
 import PlayerStatsSection from '@/components/dashboard/PlayerStatsSection';
 import UpcomingMatchesSection from '@/components/dashboard/UpcomingMatchesSection';
-import TeamHighlightsSection from '@/components/dashboard/TeamHighlightsSection';
+import BattingStatsSection from '@/components/dashboard/BattingStatsSection';
 import TeamsAndMatchesTabs from '@/components/dashboard/TeamsAndMatchesTabs';
 import { Loader2 } from 'lucide-react';
 
@@ -14,8 +14,6 @@ const Dashboard = () => {
   
   const upcomingMatches = matches.filter(match => match.status === 'upcoming');
   const completedMatches = matches.filter(match => match.status === 'completed');
-  
-  const topTeams = activeTeams.slice(0, 3);
   
   const topBatsmen = players
     .filter(p => p.battingStats && p.battingStats.runs > 0)
@@ -27,24 +25,15 @@ const Dashboard = () => {
     .sort((a, b) => (b.bowlingStats?.wickets || 0) - (a.bowlingStats?.wickets || 0))
     .slice(0, 5);
   
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-10 w-10 text-cricket-primary animate-spin" />
-            <p className="text-cricket-primary font-medium">Loading dashboard data...</p>
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
   
   return (
     <MainLayout>
       <div className="grid grid-cols-1 gap-6">
         {liveMatch ? (
-          <LiveMatchSection liveMatch={liveMatch} teams={teams} isLoading={false} />
+          <>
+            <LiveMatchSection liveMatch={liveMatch} teams={teams} isLoading={false} />
+            <BattingStatsSection />
+          </>
         ) : (
           <NoLiveMatchSection upcomingMatchCount={upcomingMatches.length} />
         )}
@@ -52,8 +41,6 @@ const Dashboard = () => {
         <PlayerStatsSection topBatsmen={topBatsmen} topBowlers={topBowlers} />
         
         <UpcomingMatchesSection upcomingMatches={upcomingMatches} teams={teams} />
-        
-        <TeamHighlightsSection topTeams={topTeams} activeTeams={activeTeams} />
         
         <TeamsAndMatchesTabs 
           activeTeams={activeTeams} 
