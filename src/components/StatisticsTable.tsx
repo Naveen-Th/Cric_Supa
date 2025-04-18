@@ -1,3 +1,4 @@
+
 import { Player } from '@/types/cricket';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowUpDown, Trophy, BarChart2, ArrowUpIcon, ArrowDownIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface StatisticsTableProps {
   title: string;
@@ -107,17 +110,17 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
   // Display loading skeleton
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
+      <Card className="shadow-md overflow-hidden border border-gray-100">
+        <CardHeader className="bg-gray-50 border-b border-gray-100 px-5 py-4">
+          <CardTitle className="text-lg font-semibold">{title}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+        <CardContent className="p-0">
+          <div className="space-y-1 p-5">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
           </div>
         </CardContent>
       </Card>
@@ -127,12 +130,12 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
   // Display empty state if no players with stats
   if (players.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
+      <Card className="shadow-md overflow-hidden">
+        <CardHeader className="bg-gray-50 border-b border-gray-100 px-5 py-4">
+          <CardTitle className="text-lg font-semibold">{title}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8">
+        <CardContent className="p-0">
+          <div className="flex flex-col items-center justify-center py-10">
             {type === 'batting' ? (
               <Trophy className="h-12 w-12 text-gray-200 mb-4" />
             ) : (
@@ -146,43 +149,43 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
   }
   
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
+    <Card className="shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow duration-300">
+      <CardHeader className="bg-gray-50 border-b border-gray-100 px-5 py-4">
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-gray-50">
             <TableRow>
-              <TableHead>Player</TableHead>
+              <TableHead className="font-medium">Player</TableHead>
               {type === 'batting' ? (
                 <>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('runs')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('runs')}>
                       Runs
                       {getSortIcon('runs')}
                     </Button>
                   </TableHead>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('ballsFaced')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('ballsFaced')}>
                       Balls
                       {getSortIcon('ballsFaced')}
                     </Button>
                   </TableHead>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('strikerate')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('strikerate')}>
                       SR
                       {getSortIcon('strikerate')}
                     </Button>
                   </TableHead>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('fours')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('fours')}>
                       4s
                       {getSortIcon('fours')}
                     </Button>
                   </TableHead>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('sixes')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('sixes')}>
                       6s
                       {getSortIcon('sixes')}
                     </Button>
@@ -191,25 +194,25 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
               ) : (
                 <>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('wickets')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('wickets')}>
                       Wickets
                       {getSortIcon('wickets')}
                     </Button>
                   </TableHead>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('overs')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('overs')}>
                       Overs
                       {getSortIcon('overs')}
                     </Button>
                   </TableHead>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('runs')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('runs')}>
                       Runs
                       {getSortIcon('runs')}
                     </Button>
                   </TableHead>
                   <TableHead>
-                    <Button variant="ghost" size="sm" onClick={() => sortPlayers('economy')}>
+                    <Button variant="ghost" size="sm" className="font-medium" onClick={() => sortPlayers('economy')}>
                       Econ
                       {getSortIcon('economy')}
                     </Button>
@@ -219,12 +222,30 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedPlayers.map(player => (
-              <TableRow key={player.id}>
-                <TableCell className="font-medium">{player.name}</TableCell>
+            {sortedPlayers.map((player, index) => (
+              <TableRow 
+                key={player.id}
+                className={cn(
+                  index < 3 && "bg-gray-50/50",
+                  index === 0 && "bg-amber-50/30"
+                )}
+              >
+                <TableCell className="font-medium flex items-center gap-2">
+                  {index < 3 && (
+                    <Badge className={cn(
+                      "w-5 h-5 flex items-center justify-center p-0 rounded-full",
+                      index === 0 && "bg-amber-500",
+                      index === 1 && "bg-slate-400",
+                      index === 2 && "bg-amber-700"
+                    )}>
+                      {index + 1}
+                    </Badge>
+                  )}
+                  {player.name}
+                </TableCell>
                 {type === 'batting' ? (
                   <>
-                    <TableCell>{player.battingStats?.runs || 0}</TableCell>
+                    <TableCell className="font-semibold">{player.battingStats?.runs || 0}</TableCell>
                     <TableCell>{player.battingStats?.ballsFaced || 0}</TableCell>
                     <TableCell>
                       {player.battingStats?.ballsFaced 
@@ -237,7 +258,7 @@ const StatisticsTable = ({ title, players, type, loading = false }: StatisticsTa
                   </>
                 ) : (
                   <>
-                    <TableCell>{player.bowlingStats?.wickets || 0}</TableCell>
+                    <TableCell className="font-semibold">{player.bowlingStats?.wickets || 0}</TableCell>
                     <TableCell>{player.bowlingStats?.overs || 0}</TableCell>
                     <TableCell>{player.bowlingStats?.runs || 0}</TableCell>
                     <TableCell>

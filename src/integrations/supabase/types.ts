@@ -267,6 +267,48 @@ export type Database = {
         }
         Relationships: []
       }
+      match_bowling_stats: {
+        Row: {
+          created_at: string | null
+          economy: number | null
+          id: string
+          innings_number: number
+          maidens: number
+          match_id: string
+          overs: number
+          player_id: string
+          runs: number
+          updated_at: string | null
+          wickets: number
+        }
+        Insert: {
+          created_at?: string | null
+          economy?: number | null
+          id?: string
+          innings_number: number
+          maidens?: number
+          match_id: string
+          overs?: number
+          player_id: string
+          runs?: number
+          updated_at?: string | null
+          wickets?: number
+        }
+        Update: {
+          created_at?: string | null
+          economy?: number | null
+          id?: string
+          innings_number?: number
+          maidens?: number
+          match_id?: string
+          overs?: number
+          player_id?: string
+          runs?: number
+          updated_at?: string | null
+          wickets?: number
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           created_at: string | null

@@ -16,7 +16,8 @@ export async function fetchPlayers(): Promise<Player[]> {
       id: player.id,
       name: player.name,
       role: player.role as 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket Keeper',
-      teamId: player.team_id,
+      team_id: player.team_id,
+      teamId: player.team_id, // Add teamId alias for compatibility
       battingStats: player.batting_stats && player.batting_stats[0] ? {
         runs: player.batting_stats[0].runs || 0,
         ballsFaced: player.batting_stats[0].balls_faced || 0,
@@ -54,7 +55,7 @@ export async function addPlayer(playerData: Omit<Player, 'id'>): Promise<Player>
         id,
         name: playerData.name,
         role: playerData.role,
-        team_id: playerData.teamId,
+        team_id: playerData.team_id || playerData.teamId, // Handle both properties
       });
       
     if (playerError) throw playerError;
@@ -89,7 +90,8 @@ export async function addPlayer(playerData: Omit<Player, 'id'>): Promise<Player>
       id,
       name: playerData.name,
       role: playerData.role,
-      teamId: playerData.teamId,
+      team_id: playerData.team_id || playerData.teamId || '',
+      teamId: playerData.team_id || playerData.teamId,
       battingStats: { runs: 0, ballsFaced: 0, fours: 0, sixes: 0 },
       bowlingStats: { overs: 0, maidens: 0, runs: 0, wickets: 0 },
     };
@@ -114,7 +116,7 @@ export async function updatePlayer(player: Player): Promise<void> {
       .update({
         name: player.name,
         role: player.role,
-        team_id: player.teamId,
+        team_id: player.team_id || player.teamId,
       })
       .eq('id', player.id);
       

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -14,6 +13,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import LiveMatchWrapper from '@/components/LiveMatchWrapper';
+import { mockMatches } from '@/data/mockData';
 
 const MatchDetails = () => {
   const { id: matchId } = useParams<{ id: string }>();
@@ -34,105 +34,115 @@ const MatchDetails = () => {
       try {
         setLoading(true);
         
-        const { data, error } = await supabase
-          .from('matches')
-          .select(`
-            id, 
-            team1_id, 
-            team2_id, 
-            date, 
-            venue, 
-            status, 
-            toss_winner_id, 
-            toss_choice, 
-            current_innings, 
-            total_overs, 
-            winner_id, 
-            mvp_id
-          `)
-          .eq('id', matchId)
-          .single();
-          
-        if (error) {
-          console.error('Error fetching match:', error);
-          setLoading(false);
-          return;
+        let matchData: Match | null = null;
+        let supabaseError = false;
+        
+        try {
+          const { data, error } = await supabase
+            .from('matches')
+            .select(`
+              id, 
+              team1_id, 
+              team2_id, 
+              date, 
+              venue, 
+              status, 
+              toss_winner_id, 
+              toss_choice, 
+              current_innings, 
+              total_overs, 
+              winner_id, 
+              mvp_id
+            `)
+            .eq('id', matchId)
+            .single();
+            
+          if (error) {
+            console.error('Error fetching match from Supabase:', error);
+            supabaseError = true;
+          } else if (data) {
+            matchData = {
+              id: data.id,
+              team1Id: data.team1_id,
+              team2Id: data.team2_id,
+              date: data.date,
+              venue: data.venue,
+              status: data.status as MatchStatus,
+              tossWinnerId: data.toss_winner_id,
+              tossChoice: data.toss_choice as 'bat' | 'bowl' | undefined,
+              currentInnings: data.current_innings as 1 | 2,
+              totalOvers: data.total_overs,
+              winnerId: data.winner_id,
+              mvpId: data.mvp_id,
+            };
+          }
+        } catch (err) {
+          console.error('Supabase fetch failed:', err);
+          supabaseError = true;
         }
         
-        if (data) {
-          const team1Data = teams.find(t => t.id === data.team1_id) || null;
-          const team2Data = teams.find(t => t.id === data.team2_id) || null;
-          const winnerData = data.winner_id ? teams.find(t => t.id === data.winner_id) : null;
+        if (supabaseError || !matchData) {
+          console.log('Using mock data as fallback for match details');
+          matchData = mockMatches.find(m => m.id === matchId) || null;
+        }
+        
+        if (matchData) {
+          const team1Data = teams.find(t => t.id === matchData?.team1Id) || null;
+          const team2Data = teams.find(t => t.id === matchData?.team2Id) || null;
+          const winnerData = matchData.winnerId ? teams.find(t => t.id === matchData.winnerId) : null;
           
           setTeam1(team1Data);
           setTeam2(team2Data);
           setWinner(winnerData);
           
           let mvpData = null;
-          if (data.mvp_id) {
+          if (matchData.mvpId) {
             const allPlayers = teams.flatMap(team => team.players || []);
-            mvpData = allPlayers.find(p => p.id === data.mvp_id) || null;
+            mvpData = allPlayers.find(p => p.id === matchData?.mvpId) || null;
             setMvp(mvpData);
           }
           
-          const matchData: Match = {
-            id: data.id,
-            team1Id: data.team1_id,
-            team2Id: data.team2_id,
-            date: data.date,
-            venue: data.venue,
-            status: data.status as MatchStatus,
-            tossWinnerId: data.toss_winner_id,
-            tossChoice: data.toss_choice as 'bat' | 'bowl' | undefined,
-            currentInnings: data.current_innings as 1 | 2,
-            totalOvers: data.total_overs,
-            winnerId: data.winner_id,
-            mvpId: data.mvp_id,
-            team1: team1Data ? { name: team1Data.name } : undefined,
-            team2: team2Data ? { name: team2Data.name } : undefined,
-            winner: winnerData ? { name: winnerData.name } : undefined,
-            mvp: mvpData ? { name: mvpData.name } : undefined,
-          };
-          
           setMatch(matchData);
           
-          if (data.status === 'live' || data.status === 'completed') {
-            const { data: inningsData, error: inningsError } = await supabase
-              .from('innings')
-              .select('*')
-              .eq('match_id', matchId)
-              .order('innings_number');
-              
-            if (inningsError) {
-              console.error('Error fetching innings:', inningsError);
-            } else if (inningsData && inningsData.length > 0) {
-              const updatedMatchData = { ...matchData };
-              
-              inningsData.forEach(innings => {
-                if (innings.innings_number === 1) {
-                  updatedMatchData.innings1 = {
-                    teamId: innings.team_id,
-                    runs: innings.runs || 0,
-                    wickets: innings.wickets || 0,
-                    overs: innings.overs || 0,
-                    extras: innings.extras || 0,
-                    battingOrder: [],
-                    bowlerId: '',
-                  };
-                } else if (innings.innings_number === 2) {
-                  updatedMatchData.innings2 = {
-                    teamId: innings.team_id,
-                    runs: innings.runs || 0,
-                    wickets: innings.wickets || 0,
-                    overs: innings.overs || 0,
-                    extras: innings.extras || 0,
-                    battingOrder: [],
-                    bowlerId: '',
-                  };
-                }
-              });
-              
-              setMatch(updatedMatchData);
+          if (matchData.status === 'live' || matchData.status === 'completed') {
+            try {
+              const { data: inningsData, error: inningsError } = await supabase
+                .from('innings')
+                .select('*')
+                .eq('match_id', matchId)
+                .order('innings_number');
+                
+              if (inningsError) {
+                console.error('Error fetching innings:', inningsError);
+              } else if (inningsData && inningsData.length > 0) {
+                const updatedMatchData = { ...matchData };
+                
+                inningsData.forEach(innings => {
+                  if (innings.innings_number === 1) {
+                    updatedMatchData.innings1 = {
+                      teamId: innings.team_id,
+                      runs: innings.runs || 0,
+                      wickets: innings.wickets || 0,
+                      overs: innings.overs || 0,
+                      extras: innings.extras || 0,
+                      battingOrder: [],
+                    };
+                  } else if (innings.innings_number === 2) {
+                    updatedMatchData.innings2 = {
+                      teamId: innings.team_id,
+                      runs: innings.runs || 0,
+                      wickets: innings.wickets || 0,
+                      overs: innings.overs || 0,
+                      extras: innings.extras || 0,
+                      battingOrder: [],
+                    };
+                  }
+                });
+                
+                setMatch(updatedMatchData);
+              }
+            } catch (error) {
+              console.error('Error fetching innings data:', error);
             }
           }
         }

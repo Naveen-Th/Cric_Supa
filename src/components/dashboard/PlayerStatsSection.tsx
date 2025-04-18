@@ -4,6 +4,7 @@ import { BarChart4, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import StatisticsTable from '@/components/StatisticsTable';
 import { Player } from '@/types/cricket';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PlayerStatsSectionProps {
   topBatsmen: Player[];
@@ -12,6 +13,7 @@ interface PlayerStatsSectionProps {
 
 const PlayerStatsSection = ({ topBatsmen, topBowlers }: PlayerStatsSectionProps) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   return (
     <div className="mb-8">
@@ -23,24 +25,28 @@ const PlayerStatsSection = ({ topBatsmen, topBowlers }: PlayerStatsSectionProps)
         <Button 
           variant="ghost" 
           size="sm" 
-          className="flex items-center"
+          className="flex items-center gap-1 hover:bg-gray-100 text-gray-700"
           onClick={() => navigate('/statistics')}
         >
-          View all stats <ArrowRight className="ml-1 h-4 w-4" />
+          View all stats <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <StatisticsTable 
-          title="Top Batsmen" 
-          players={topBatsmen} 
-          type="batting"
-        />
-        <StatisticsTable 
-          title="Top Bowlers" 
-          players={topBowlers} 
-          type="bowling"
-        />
+        <div className={isMobile ? "order-1" : ""}>
+          <StatisticsTable 
+            title="Top Batsmen" 
+            players={topBatsmen} 
+            type="batting"
+          />
+        </div>
+        <div className={isMobile ? "order-2" : ""}>
+          <StatisticsTable 
+            title="Top Bowlers" 
+            players={topBowlers} 
+            type="bowling"
+          />
+        </div>
       </div>
     </div>
   );
