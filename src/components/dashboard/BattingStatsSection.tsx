@@ -1,18 +1,19 @@
+
 import React from 'react';
 import { useCricket } from '@/context/CricketContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Player, Match, Innings } from '@/types/cricket';
+import { Player } from '@/types/cricket';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
 
 interface BattingStats {
-  id: number;
-  player_id: number;
+  id: number | string;
+  player_id: string;
   player_name: string;
-  match_id: number;
+  match_id: string;
   innings_number: number;
   runs: number;
   balls_faced: number;
@@ -20,29 +21,7 @@ interface BattingStats {
   sixes: number;
   is_striker: boolean;
   status: 'not_out' | 'out';
-  dismissal_info?: string;
   batting_order: number;
-}
-
-interface DBBattingStats {
-  id: string;
-  player_id: string;
-  match_id: string;
-  innings_number: number;
-  runs: number;
-  balls_faced: number;
-  fours: number;
-  sixes: number;
-  is_out: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface DBBattingStatsWithPlayer extends DBBattingStats {
-  players: {
-    name: string;
-    team_id: string;
-  } | null;
 }
 
 const BattingStatsSection = () => {
@@ -50,6 +29,8 @@ const BattingStatsSection = () => {
   const [battingStats, setBattingStats] = useState<BattingStats[]>([]);
   const [yetToBat, setYetToBat] = useState<Player[]>([]);
   const [teams, setTeams] = useState<{ team1Name: string; team2Name: string }>({ team1Name: '', team2Name: '' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTeamNames = async () => {
@@ -85,59 +66,72 @@ const BattingStatsSection = () => {
     const fetchBattingStats = async () => {
       if (!liveMatch) return;
       
+      setLoading(true);
+      setError(null);
+      
       try {
-        // Query both batting stats and partnership data
-        const { data: stats, error } = await supabase
+        // Get match batting stats directly
+        const { data: statsData, error: statsError } = await supabase
           .from('match_batting_stats')
-          .select(`
-            *,
-            players:player_id (
-              name,
-              team_id
-            )
-          `)
+          .select('*')
           .eq('match_id', liveMatch.id)
           .eq('innings_number', liveMatch.currentInnings);
 
-        if (error) {
-          console.error('Error fetching batting stats:', error);
+        if (statsError) {
+          console.error('Error fetching batting stats:', statsError);
+          setError('Failed to load batting statistics');
           return;
         }
 
         // Get current partnership to identify striker/non-striker
-        const { data: partnership } = await supabase
+        const { data: partnershipData, error: partnershipError } = await supabase
           .from('batting_partnerships')
           .select('*')
           .eq('match_id', liveMatch.id)
           .eq('innings_number', liveMatch.currentInnings)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
 
-        const transformedStats: BattingStats[] = (stats || []).map((stat: DBBattingStatsWithPlayer) => ({
-          id: Number(stat.id),
-          player_id: Number(stat.player_id),
-          player_name: stat.players?.name || 'Unknown Player',
-          match_id: Number(stat.match_id),
-          innings_number: stat.innings_number,
-          runs: stat.runs || 0,
-          balls_faced: stat.balls_faced || 0,
-          fours: stat.fours || 0,
-          sixes: stat.sixes || 0,
-          is_striker: partnership ? stat.player_id === partnership.striker_id : false,
-          status: stat.is_out ? 'out' : 'not_out',
-          batting_order: stat.batting_order || 0
-        }));
+        if (partnershipError) {
+          console.error('Error fetching partnership:', partnershipError);
+        }
+
+        const partnership = partnershipData?.[0];
+        
+        // Map player details to stats
+        const transformedStats: BattingStats[] = statsData.map((stat: any) => {
+          // Find player for this stat
+          const player = players.find(p => p.id === stat.player_id);
+          
+          return {
+            id: stat.id,
+            player_id: stat.player_id,
+            player_name: player?.name || 'Unknown Player',
+            match_id: stat.match_id,
+            innings_number: stat.innings_number,
+            runs: stat.runs || 0,
+            balls_faced: stat.balls_faced || 0,
+            fours: stat.fours || 0,
+            sixes: stat.sixes || 0,
+            is_striker: partnership ? stat.player_id === partnership.striker_id : false,
+            status: stat.is_out ? 'out' : 'not_out',
+            batting_order: stat.batting_order || 0
+          };
+        });
 
         setBattingStats(transformedStats);
 
         // Update yet to bat list
         const battingTeamId = liveMatch.currentInnings === 1 ? liveMatch.team1Id : liveMatch.team2Id;
         const teamPlayers = players.filter(p => p.team_id === battingTeamId);
-        const battedPlayers = new Set(transformedStats.map(s => String(s.player_id)));
+        const battedPlayers = new Set(transformedStats.map(s => s.player_id));
         setYetToBat(teamPlayers.filter(p => !battedPlayers.has(p.id)));
+        
       } catch (error) {
         console.error('Error in fetchBattingStats:', error);
+        setError('An unexpected error occurred');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -165,15 +159,49 @@ const BattingStatsSection = () => {
   }, [liveMatch, liveMatch?.currentInnings, players]);
 
   if (!liveMatch) return <div>No live match in progress</div>;
+  
+  if (loading) {
+    return (
+      <Card className="shadow-lg border-2 border-cricket-pitch/10">
+        <CardHeader className="bg-gradient-to-br from-cricket-primary/5 to-cricket-secondary/5">
+          <CardTitle className="text-xl font-semibold">
+            Loading Batting Statistics...
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const currentInnings = liveMatch.currentInnings === 1 ? liveMatch.innings1 : liveMatch.innings2;
+  if (error) {
+    return (
+      <Card className="shadow-lg border-2 border-cricket-pitch/10">
+        <CardHeader className="bg-gradient-to-br from-cricket-primary/5 to-cricket-secondary/5">
+          <CardTitle className="text-xl font-semibold">
+            Batting Statistics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="text-center text-red-500">{error}</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const battingTeamId = liveMatch.currentInnings === 1 ? liveMatch.team1Id : liveMatch.team2Id;
+  const currentTeamName = battingTeamId === liveMatch.team1Id ? teams.team1Name : teams.team2Name;
 
   return (
     <Card className="shadow-lg border-2 border-cricket-pitch/10">
       <CardHeader className="bg-gradient-to-br from-cricket-primary/5 to-cricket-secondary/5">
         <CardTitle className="text-xl font-semibold">
-          Batting Statistics - {teams.team1Name || teams.team2Name}
+          Batting Statistics - {currentTeamName}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -198,7 +226,7 @@ const BattingStatsSection = () => {
               <TableBody>
                 {battingStats
                   .filter(stat => {
-                    const player = players.find(p => String(p.id) === String(stat.player_id));
+                    const player = players.find(p => p.id === stat.player_id);
                     return player?.team_id === liveMatch.team1Id;
                   })
                   .map((stat) => {
@@ -250,7 +278,7 @@ const BattingStatsSection = () => {
               <TableBody>
                 {battingStats
                   .filter(stat => {
-                    const player = players.find(p => String(p.id) === String(stat.player_id));
+                    const player = players.find(p => p.id === stat.player_id);
                     return player?.team_id === liveMatch.team2Id;
                   })
                   .map((stat) => {
